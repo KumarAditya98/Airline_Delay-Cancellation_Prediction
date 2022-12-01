@@ -1,0 +1,52 @@
+---
+title: "Airline Delay and Cancellation"
+author: "Group 5"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# importing libraries
+library(ezids)
+library(tidyverse)
+```
+
+Importing data
+```{r}
+airlines <- data.frame(read.csv("data/airlines.csv"))
+airports <- data.frame(read.csv("data/airports.csv"))
+#flights <- data.frame(read.csv("C:/Users/Aditya Kumar/OneDrive/Study/GWU - Data Science/DATS 6101 Intro to Data Science/Project 02/archive (1)/2015.csv"))
+#nrow(flights)
+```
+
+Our entire flights data for 2015 has 5,819,079 rows which is extremely large. For the sake of our analysis, we will only randomly select `r round(nrow(flights)*0.1)` rows.    
+Sub-setting dataset because it is very large. 
+```{r}
+#set.seed(333)
+#sample_size = round(nrow(flights)*0.1)
+#flights_sample <- flights[sample(nrow(flights), sample_size, replace = F),]
+#head(flights_sample)
+```
+
+Exporting smaller sample
+```{r}
+#write.csv(flights_sample, file = "data/flights_sample.csv",row.names=F)
+
+flight <- read.csv("data/flights_sample.csv")
+```
+
+This data now has `r nrow(flight)` rows.   
+
+Now we'll begin our analysis.   
+
+# Pre-processing and initial analysis    
+
+The primary objective of the project is to determine whether a flight is going to be delayed or not. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a factor column with two levels - 0 and 1. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
+```{r}
+nrow(subset(flight,ARR_DELAY==1))
+nrow(subset(flight,ARR_DELAY==0))
+```
+We can see that both levels of the dependent variable are equally distributed.   
+
