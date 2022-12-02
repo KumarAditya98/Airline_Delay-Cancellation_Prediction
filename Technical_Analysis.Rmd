@@ -89,7 +89,20 @@ subset(flight,DELAYED_STATUS==1) %>%
 flight %>%
   group_by(MONTH) %>%
   summarize(
-    prop_delayed = sum(DELAYED_STATUS)
-  )
+    prop_delayed = mean(DELAYED_STATUS, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      x = MONTH,
+      y = prop_delayed
+    )
+  ) +
+  geom_col() +
+  labs(
+    title = "Percent of Flights Delayed by Month",
+    x = "Month",
+    y = "Percent"
+  ) +
+  theme_bw()
 ```
 
