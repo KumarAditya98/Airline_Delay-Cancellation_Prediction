@@ -37,16 +37,59 @@ Exporting smaller sample
 flight <- read.csv("data/flights_sample.csv")
 ```
 
+```{r}
+str(flight)
+```
+
+
 This data now has `r nrow(flight)` rows.   
 
 Now we'll begin our analysis.   
 
 # Pre-processing and initial analysis    
 
-The primary objective of the project is to determine whether a flight is going to be delayed or not. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a factor column with two levels - 0 and 1. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
+The primary objective of the project is to determine whether a flight is going to be delayed or not. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a numeric columns with the time difference in the arrival as minutes. Positive values indicate a delay, while a negative value indicates an early arrival. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
 ```{r}
-nrow(subset(flight,ARR_DELAY==1))
-nrow(subset(flight,ARR_DELAY==0))
+nrow(subset(flight,ARR_DELAY>0))
+nrow(subset(flight,ARR_DELAY<=0))
 ```
-We can see that both levels of the dependent variable are equally distributed.   
+
+We can see that there are more flights that are not delayed than flights that are delayed. This might represent some imbalance in our dataset.
+
+Let's create a new binary variable `DELAYED_STATUS` to indicate whether a flight was delayed `1` or not delayed `0`
+```{r}
+flight$DELAYED_STATUS <- if_else(flight$ARR_DELAY > 0, 1, 0)
+
+table(flight$DELAYED_STATUS)
+```
+
+We can also make a month variable, which could be a good predictor of delays
+```{r}
+flight$MONTH <- substr(flight$FL_DATE, 6, 7)
+table(flight$MONTH)
+```
+
+```{r}
+subset(flight,DELAYED_STATUS==1) %>%
+  ggplot(
+    aes(
+      x = MONTH
+    )
+  ) +
+  geom_bar() +
+  labs(
+    title = "Number of Delayed Flights by Month",
+    x = "Month",
+    y = "Count"
+  ) +
+  theme_bw()
+```
+
+```{r}
+flight %>%
+  group_by(MONTH) %>%
+  summarize(
+    prop_delayed = sum(DELAYED_STATUS)
+  )
+```
 
