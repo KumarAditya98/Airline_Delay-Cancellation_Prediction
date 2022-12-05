@@ -103,7 +103,7 @@ From the glossary, we can also identify a few attributes that give a lot of info
 * Taxi In
 * Actual Elapsed Time   
 
-It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them.
+It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them. The model with the attributes will result in better accuracy, precision and recall.
 
 We can also make a month variable, which could be a good predictor of delays
 ```{r}
