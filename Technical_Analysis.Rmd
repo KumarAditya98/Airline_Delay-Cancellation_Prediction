@@ -46,9 +46,41 @@ This data now has `r nrow(flight)` rows.
 
 Now we'll begin our analysis.   
 
-# Pre-processing and initial analysis    
+# Pre-processing and initial analysis   
 
-The primary objective of the project is to determine whether a flight is going to be delayed or not. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a numeric columns with the time difference in the arrival as minutes. Positive values indicate a delay, while a negative value indicates an early arrival. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
+Glossary of all the columns in the dataset:   
+
+* FL_DATE = Date of the Flight
+* OP_CARRIER = Airline Identifier
+* OP_CARRIER_FL_NUM = Flight Number
+* ORIGIN = Starting Airport Code
+* DEST = Destination Airport Code
+* CRS_DEP_TIME = Planned Departure Time
+* DEP_TIME = Actual Departure Time
+* DEP_DELAY = Total Delay on Departure in minutes
+* TAXI_OUT = The time duration elapsed between departure from the origin airport gate and wheels off
+* WHEELS_OFF = The time point that the aircraft's wheels leave the ground
+* WHEELS_ON = The time point that the aircraft's wheels touch on the ground
+* TAXI_IN = The time duration elapsed between wheels-on and gate arrival at the destination airport
+* CRS_ARR_TIME = Planned arrival time
+* ARR_TIME = Actual Arrival Time = ARRIVAL_TIME - SCHEDULED_ARRIVAL
+* ARR_DELAY = Total Delay on Arrival in minutes
+* CANCELLED = Flight Cancelled (1 = cancelled)
+* CANCELLATION_CODE = Reason for Cancellation of flight: A - Airline/Carrier; B - Weather; C - National Air System; D - Security
+* DIVERTED = Aircraft landed on different airport that the one scheduled
+* CRS_ELAPSED_TIME = Planned time amount needed for the flight trip
+* ACTUAL_ELAPSED_TIME = AIR_TIME+TAXI_IN+TAXI_OUT
+* AIR_TIME = The time duration between wheels_off and wheels_on time
+* DISTANCE = Distance between two airports
+* CARRIER_DELAY = Delay caused by the airline in minutes
+* WEATHER_DELAY = Delay caused by weather
+* NAS_DELAY = Delay caused by air system
+* SECURITY_DELAY = caused by security reasons
+* LATE_AIRCRAFT_DELAY = Delay caused by security   
+
+*Source : Kaggle*
+
+The primary objective of the project is to determine whether a flight is going to be delayed or not, **prior to this information being displayed on the departure board**. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a numeric columns with the time difference in the arrival as minutes. Positive values indicate a delay, while a negative value indicates an early arrival. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
 ```{r}
 nrow(subset(flight,ARR_DELAY>0))
 nrow(subset(flight,ARR_DELAY<=0))
@@ -62,6 +94,16 @@ flight$DELAYED_STATUS <- if_else(flight$ARR_DELAY > 0, 1, 0)
 
 table(flight$DELAYED_STATUS)
 ```
+
+From the glossary, we can also identify a few attributes that give a lot of information on flight delay. These columns are:    
+
+* Taxi Out
+* Wheels Off
+* Wheels On
+* Taxi In
+* Actual Elapsed Time   
+
+It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them.
 
 We can also make a month variable, which could be a good predictor of delays
 ```{r}
