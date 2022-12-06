@@ -204,6 +204,11 @@ flight <- subset(flight,!is.na(arr_delay)|!is.na(taxi_in))
 colSums(is.na(flight))
 ```
 
+Checking the distribution of `delayed_status` column again.
+```{r}
+
+```
+
 ## EDA   
 
 We can also make a month and a day variable, which could be good predictors of delays.
