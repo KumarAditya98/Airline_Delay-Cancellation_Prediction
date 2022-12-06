@@ -99,8 +99,6 @@ table(flight$DELAYED_STATUS)
 
 From the glossary, we can also identify a few attributes that give a lot of information on whether a flight is going to be delayed. These columns are:    
 
-* Taxi Out
-* Wheels Off
 * Wheels On
 * Taxi In
 * Actual Elapsed Time   
@@ -193,6 +191,12 @@ We see that around 81.5% of all our observations contain null values for these c
 ```{r}
 flight_copy <- flight
 flight <- subset(flight, select=-c(carrier_delay,weather_delay,nas_delay,security_delay,late_aircraft_delay))
+```
+
+## Checking for further missing values in the dataset
+
+```{r}
+colSums(is.na(flight))
 ```
 
 
