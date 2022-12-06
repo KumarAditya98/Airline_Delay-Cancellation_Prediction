@@ -161,8 +161,44 @@ With the above code, we see that all values in `cancellation_code` are now null 
 ```{r}
 flight = subset(flight,select=-c(cancellation_code))
 xkabledplyhead(flight,title="The first 5 rows of the dataset after removing cancellation_code")
+```    
+
+Another variable that catches attention is `diverted`. A diverted flight is one that has landed in a different airport than the one scheduled. This is normally temporary and the airline has the responsibility of taking passengers to their final destination without any extra cost. Therefore this is ideally considered a delayed flight.   
+```{r}
+unique(flight$diverted)
+nrow(subset(flight,diverted==1))
+nrow(subset(flight,diverted==0))
+```
+This column contains only 2 values, 0 and 1. The 1's are extremely small in occurrence.
+The assumption here is that 1 indicates that a flight has been diverted. A diverted flight should have the `arr_delay` column populated, as it should definitely have delay on arrival to the actual destination airport. Confirming this with the below code.
+```{r}
+unique(subset(flight,diverted==1)$arr_delay)
+```
+The above results are inconsistent with the assumption. As it turns out, all diverted flights have no information on the `arr_delay`. This renders this column useless to us for predicting delay. Therefore, we will be removing this column as well.
+```{r}
+flight <- subset(flight,select=-c(diverted))
 ```
 
+Now turning our attention to the the columns that cite the delay reason. On first glance, majority of the observations contain null values which is not a good sign. Lets get a count of how many null values there are.
+```{r}
+total <- nrow(flight)
+total
+(nrow(subset(flight,is.na(carrier_delay)))/total)*100
+(nrow(subset(flight,is.na(weather_delay)))/total)*100
+(nrow(subset(flight,is.na(nas_delay)))/total)*100
+(nrow(subset(flight,is.na(security_delay)))/total)*100
+(nrow(subset(flight,is.na(late_aircraft_delay)))/total)*100
+```
+We see that around 81.5% of all our observations contain null values for these columns and for some reason, the information is missing from columns at all the same instances. The conclusion is that we cannot use this column for any useful predictions owing to the large missing values. The choice is to drop these columns too. However, before doing that, we'll make a copy of flight dataset, maybe we can perform interesting EDA using this column using available rows (finding out the top reason for delay).
+```{r}
+flight_copy <- flight
+flight <- subset(flight, select=-c(carrier_delay,weather_delay,nas_delay,security_delay,late_aircraft_delay))
+```
+
+
+
+
+## EDA   
 
 We can also make a month variable, which could be a good predictor of delays.
 ```{r}
