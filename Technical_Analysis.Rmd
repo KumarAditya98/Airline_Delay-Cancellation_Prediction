@@ -198,9 +198,11 @@ flight <- subset(flight, select=-c(carrier_delay,weather_delay,nas_delay,securit
 ```{r}
 colSums(is.na(flight))
 ```
-
-
-
+We see that quite a few columns still have null values. However, the proportion of these values is extremely small as compared to the size of the dataset. We will go ahead and remove these rows to ensure model is built correctly.
+```{r}
+flight <- subset(flight,!is.na(arr_delay)|!is.na(taxi_in))
+colSums(is.na(flight))
+```
 
 ## EDA   
 
