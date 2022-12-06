@@ -202,18 +202,19 @@ flight <- subset(flight, select=-c(carrier_delay,weather_delay,nas_delay,securit
 
 We can also make a month variable, which could be a good predictor of delays.
 ```{r}
-flight$MONTH <- substr(flight$FL_DATE, 6, 7)
+flight$MONTH <- substr(flight$fl_date, 6, 7)
 table(flight$MONTH)
 ```
 
+Graphing Number of Flight Delays by Month
 ```{r}
-subset(flight,DELAYED_STATUS==1) %>%
+subset(flight,delayed_status==1) %>%
   ggplot(
     aes(
       x = MONTH
     )
   ) +
-  geom_bar() +
+  geom_bar(fill = "lightblue", col = "black") +
   labs(
     title = "Number of Delayed Flights by Month",
     x = "Month",
@@ -222,11 +223,12 @@ subset(flight,DELAYED_STATUS==1) %>%
   theme_bw()
 ```
 
+Graph of percent of flight delays by month
 ```{r}
 flight %>%
   group_by(MONTH) %>%
   summarize(
-    prop_delayed = mean(DELAYED_STATUS, na.rm = T) * 100
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
   ) %>%
   ggplot(
     aes(
@@ -234,7 +236,7 @@ flight %>%
       y = prop_delayed
     )
   ) +
-  geom_col() +
+  geom_col(fill = "lightblue", col = "black") +
   labs(
     title = "Percent of Flights Delayed by Month",
     x = "Month",
@@ -242,4 +244,56 @@ flight %>%
   ) +
   theme_bw()
 ```
+
+Graph of number of flights by carrier
+```{r}
+flight %>%
+  group_by(op_carrier) %>%
+  summarize(
+    Count = n()
+  ) %>%
+  ggplot(
+    aes(
+      x = fct_reorder(op_carrier, Count, .desc = T),
+      y = Count
+    )
+  ) +
+  geom_col(fill = "lightblue", color = "black") +
+  labs(
+    title = "Number of Flights by Airline",
+    x = "Airline",
+    y = "Count"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Percentage of Flight delays
+```{r}
+flight %>%
+  group_by(op_carrier) %>%
+  summarize(
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      x = fct_reorder(op_carrier, prop_delayed, .desc = T),
+      y = prop_delayed
+    )
+  ) + 
+  geom_col(fill = "lightblue", color = "black") + 
+  labs(
+    title = "Percent of Flights Delayed by Airline",
+    x = "Airline",
+    y = "Percent Delayed"
+  ) + 
+  theme_bw()
+```
+
+
+
+
+
+
+
+
 
