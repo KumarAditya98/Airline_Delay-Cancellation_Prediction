@@ -6,11 +6,13 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F,results='markup')
 
 # importing libraries
 library(ezids)
+library(ggplot2)
 library(tidyverse)
+library(dplyr)
 ```
 
 Importing data
@@ -21,7 +23,7 @@ airports <- data.frame(read.csv("data/airports.csv"))
 #nrow(flights)
 ```
 
-Our entire flights data for 2015 has 5,819,079 rows which is extremely large. For the sake of our analysis, we will only randomly select `r round(nrow(flights)*0.1)` rows.    
+Our entire flights data for 2015 has 5,819,079 rows which is extremely large. For the sake of our analysis, we will only randomly select 581,908 rows which is 10% of the original dataset size.    
 Sub-setting dataset because it is very large. 
 ```{r}
 #set.seed(333)
@@ -40,7 +42,6 @@ flight <- read.csv("data/flights_sample.csv")
 ```{r}
 str(flight)
 ```
-
 
 This data now has `r nrow(flight)` rows.   
 
@@ -78,7 +79,7 @@ Glossary of all the columns in the dataset:
 * SECURITY_DELAY = caused by security reasons
 * LATE_AIRCRAFT_DELAY = Delay caused by security   
 
-*Source : Kaggle*
+*Source : [kaggle](https://www.kaggle.com/datasets/yuanyuwendymu/airline-delay-and-cancellation-data-2009-2018?select=2009.csv)*
 
 The primary objective of the project is to determine whether a flight is going to be delayed or not, **prior to this information being displayed on the departure board**. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a numeric columns with the time difference in the arrival as minutes. Positive values indicate a delay, while a negative value indicates an early arrival. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
 ```{r}
@@ -95,7 +96,7 @@ flight$DELAYED_STATUS <- if_else(flight$ARR_DELAY > 0, 1, 0)
 table(flight$DELAYED_STATUS)
 ```
 
-From the glossary, we can also identify a few attributes that give a lot of information on flight delay. These columns are:    
+From the glossary, we can also identify a few attributes that give a lot of information on whether a flight is going to be delayed. These columns are:    
 
 * Taxi Out
 * Wheels Off
@@ -103,9 +104,50 @@ From the glossary, we can also identify a few attributes that give a lot of info
 * Taxi In
 * Actual Elapsed Time   
 
-It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them. The model with the attributes will result in better accuracy, precision and recall.
+It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them. The model with these attributes will result in better accuracy, precision and recall.
 
-We can also make a month variable, which could be a good predictor of delays
+“Departure Delay” is not listed above, which may be considered a borderline variable known just as the flight departs from source. However, departure delay does not always indicate a delay in arrival. It could be the case that a flight has departure delay but airlines try to account for these delays by reducing their elapse time, and in some cases, they succeed and the planes end up arriving on time or even earlier.    
+We can see this with the graph below - 
+```{r}
+dummy1 <- flight %>% pivot_longer(.,cols = c('DEP_DELAY','ARR_DELAY'),names_to='value_category')
+ggplot(dummy1,aes(fill=value_category,x=value,y=OP_CARRIER)) + geom_bar(position="dodge", stat="identity")+labs(title="Total Arrival/Departure Delay per Airline",x="Total Arrival/Departure Delay (mins)",y="Unique Airline Identifier")
+```
+We get a rough idea that departure delays do not necessarily amount to an arrival delay with this plot, as some airlines can be seen to have total departure delays greater than their arrival delays.   
+
+Looking at the mean arrival/departure delays will reinforce the point further.
+```{r}
+group1 <- dummy1 %>% group_by(OP_CARRIER,value_category) %>% 
+  summarize(
+  mean_value = mean(value,na.rm=T)
+)
+ggplot(group1,aes(fill=value_category,x=mean_value,y=OP_CARRIER)) + geom_bar(position="dodge", stat="identity")+labs(title="Mean Arrival/Departure Delay per Airline",x="Mean Arrival/Departure Delay (mins)",y="Unique Airline Identifier")
+```
+We can clearly see that airlines that are prone to high departure delays, do not necessarily need to have a high arrival delay as well.
+
+Before we proceed further, we noticed the presence of a column called `Unnamed:27`, and most of the rows at first glance are nulls. Looking for all the null values in this column.
+```{r}
+sum(is.na(flight$Unnamed..27))
+```
+We see that all rows for this column are null. Therefore, we can drop this column. 
+```{r}
+flight <- subset(flight,select=-c(Unnamed..27))
+```
+
+Before moving on, typing the column names in caps all the time is very exhausting. Therefore, we will further convert the column names to all lower cases.
+```{r}
+names(flight) <- tolower(names(flight))
+head(flight)
+```
+
+Aside from predicting arrival delay, as a secondary analysis we also want to predict flight cancellation prior to it being announced. We notice the presence of another feature in the dataset, that gives us this information - `cancelled`. However, flight_delay_status and cancellation cannot be used together at the same time. If a flight gets cancelled, then delay does not make sense and shouldn't be applicable. Lets make sure that this is the case. If a flight is marked as `cancelled` = 1, then arrival delay and departure delay should be null values.
+```{r}
+dummy2 <- subset(flight,cancelled>0)
+nrow(dummy2)
+sum(is.na(dummy2$arr_delay))
+sum(is.na(dummy2$dep_delay))
+```
+
+We can also make a month variable, which could be a good predictor of delays.
 ```{r}
 flight$MONTH <- substr(flight$FL_DATE, 6, 7)
 table(flight$MONTH)
