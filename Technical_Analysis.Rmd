@@ -206,10 +206,11 @@ colSums(is.na(flight))
 
 ## EDA   
 
-We can also make a month variable, which could be a good predictor of delays.
+We can also make a month and a day variable, which could be good predictors of delays.
 ```{r}
 flight$MONTH <- substr(flight$fl_date, 6, 7)
 table(flight$MONTH)
+flight$DAY <- substr(flight$fl_date, 9, 10)
 ```
 
 Graphing Number of Flight Delays by Month
