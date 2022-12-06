@@ -152,8 +152,16 @@ flight <- subset(flight,cancelled==0)
 flight <- subset(flight,select=-c(cancelled))
 xkabledplyhead(flight,title="The first 5 rows of the new dataset")
 ```
-In addition to this, there's another column which is called the `cancellation_code` which explains the cancellation reason for these cancelled flights. Since, we've already subset 
-
+In addition to this, there's another column which is called the `cancellation_code` which explains the cancellation reason for these cancelled flights. Since, we've already subset to `cancelled` = 0, we expect to see nulls in this column as there needn't be a cancellation reason any longer. Verifying this with below code.
+```{r}
+nrow(flight)
+nrow(subset(flight,is.na(cancellation_code)||cancellation_code==""))
+```
+With the above code, we see that all values in `cancellation_code` are now null or blank values. Therefore, we can remove this column from the dataset.
+```{r}
+flight = subset(flight,select=-c(cancellation_code))
+xkabledplyhead(flight,title="The first 5 rows of the dataset after removing cancellation_code")
+```
 
 
 We can also make a month variable, which could be a good predictor of delays.
