@@ -335,6 +335,7 @@ logit <- glm(delayed_status ~ op_carrier + origin + dest + month, data = flight_
 summary(logit)
 ```
 
+
 Plotting ROC
 ```{r}
 loadPkg("pROC") 
@@ -345,9 +346,23 @@ auc(h) # 0.6944
 plot(h)
 ```
 
+Area under the curve is 0.6944
 
+```{r}
+library(pscl)
+pR2(logit)
+```
 
+McFadden value is 0.1039
 
+Confusion Matrix
+```{r}
+library(caret)
 
+flight_small$response <- as.factor(if_else(flight_small$prob >=0.5, 1, 0))
+flight_small$delayed_status <- as.factor(flight_small$delayed_status)
+
+confusionMatrix(flight_small$delayed_status, flight_small$response)
+```
 
 
