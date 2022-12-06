@@ -293,7 +293,49 @@ flight %>%
   theme_bw()
 ```
 
+# Modeling
 
+## Logistic Regression
+
+Having over 500,000 is too much to process in the model and is causing the session to slow down. I'm going to subset it even smaller
+```{r}
+set.seed(333)
+sample_size = round(nrow(flight)*0.01)
+flight_small <- flight[sample(nrow(flight), sample_size, replace = F),]
+head(flight_small)
+```
+
+
+```{r}
+flight_small$op_carrier <- as.factor(flight_small$op_carrier)
+flight_small$origin <- as.factor(flight_small$origin)
+flight_small$dest <- as.factor(flight_small$dest)
+flight_small$month <- as.factor(flight_small$MONTH)
+
+flight_small <- flight_small[!is.na(flight_small$op_carrier),]
+flight_small <- flight_small[!is.na(flight_small$origin),]
+flight_small <- flight_small[!is.na(flight_small$dest),]
+flight_small <- flight_small[!is.na(flight_small$month),]
+flight_small <- flight_small[!is.na(flight_small$delayed_status),]
+
+str(flight_small)
+```
+
+
+```{r}
+logit <- glm(delayed_status ~ op_carrier + origin + dest + month, data = flight_small, family = "binomial")
+summary(logit)
+```
+
+Plotting ROC
+```{r}
+loadPkg("pROC") 
+prob <- predict(logit, type = "response" )
+flight_small$prob <- prob
+h <- roc(delayed_status ~ prob, data = flight_small)
+auc(h) # 0.6944
+plot(h)
+```
 
 
 
