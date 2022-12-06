@@ -40,6 +40,7 @@ flight <- read.csv("data/flights_sample.csv")
 ```
 
 ```{r}
+xkabledplyhead(flight,title="The first 5 rows of the dataset")
 str(flight)
 ```
 
@@ -124,7 +125,7 @@ ggplot(group1,aes(fill=value_category,x=mean_value,y=OP_CARRIER)) + geom_bar(pos
 ```
 We can clearly see that airlines that are prone to high departure delays, do not necessarily need to have a high arrival delay as well.
 
-Before we proceed further, we noticed the presence of a column called `Unnamed:27`, and most of the rows at first glance are nulls. Looking for all the null values in this column.
+Before we proceed further, we noticed the presence of a column called `Unnamed..27`, and most of the rows at first glance are nulls. Looking for all the null values in this column.
 ```{r}
 sum(is.na(flight$Unnamed..27))
 ```
@@ -136,16 +137,24 @@ flight <- subset(flight,select=-c(Unnamed..27))
 Before moving on, typing the column names in caps all the time is very exhausting. Therefore, we will further convert the column names to all lower cases.
 ```{r}
 names(flight) <- tolower(names(flight))
-head(flight)
+xkabledplyhead(flight,title="The first 5 rows with lower case column names")
 ```
 
 Aside from predicting arrival delay, as a secondary analysis we also want to predict flight cancellation prior to it being announced. We notice the presence of another feature in the dataset, that gives us this information - `cancelled`. However, flight_delay_status and cancellation cannot be used together at the same time. If a flight gets cancelled, then delay does not make sense and shouldn't be applicable. Lets make sure that this is the case. If a flight is marked as `cancelled` = 1, then arrival delay and departure delay should be null values.
 ```{r}
-dummy2 <- subset(flight,cancelled>0)
-nrow(dummy2)
-sum(is.na(dummy2$arr_delay))
-sum(is.na(dummy2$dep_delay))
+can_flight <- subset(flight,cancelled>0)
+nrow(can_flight)
+sum(is.na(can_flight$arr_delay))
 ```
+From the above, we see that our assumption stands. For flights that were cancelled, arrival delay is always null. So to build a model that predicts whether a flight is delayed, we cannot use the data for when flights were cancelled as we will get erroneous results. Therefore, we will subset our dataset for only `cancelled` = 0.    
+```{r}
+flight <- subset(flight,cancelled==0)
+flight <- subset(flight,select=-c(cancelled))
+xkabledplyhead(flight,title="The first 5 rows of the new dataset")
+```
+In addition to this, there's another column which is called the `cancellation_code` which explains the cancellation reason for these cancelled flights. Since, we've already subset 
+
+
 
 We can also make a month variable, which could be a good predictor of delays.
 ```{r}
