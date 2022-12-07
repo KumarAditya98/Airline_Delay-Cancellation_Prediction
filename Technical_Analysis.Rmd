@@ -236,13 +236,15 @@ Now to answer one of the SMART questions, since there is slight skewness between
 In technical terms, our models need to be tuned to have a higher **recall** as opposed to **precision**.
 
 
-## EDA   
+## Feature engineering and EDA   
 
-We can also make a month and a day variable, which could be good predictors of delays.
+We can also make a month and a day variable, which could be good predictors of delays. Also creating a day of the week variable starting with Sunday.
 ```{r}
 flight$MONTH <- substr(flight$fl_date, 6, 7)
 table(flight$MONTH)
 flight$DAY <- substr(flight$fl_date, 9, 10)
+#table(flight$DAY)
+flight$dow <- lubridate::wday(flight$fl_date,label=TRUE,abbr=FALSE)
 ```
 
 Graphing Number of Flight Delays by Month
@@ -258,6 +260,22 @@ subset(flight,delayed_status==1) %>%
     title = "Number of Delayed Flights by Month",
     x = "Month",
     y = "Count"
+  ) +
+  theme_bw()
+```
+Graphing Number of Flight Delays by Day Of Week
+```{r}
+subset(flight,delayed_status==1) %>%
+  ggplot(
+    aes(
+      y = dow
+    )
+  ) +
+  geom_bar(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Delayed Flights by DOW",
+    y = "DOW",
+    x = "Count"
   ) +
   theme_bw()
 ```
@@ -283,47 +301,102 @@ flight %>%
   ) +
   theme_bw()
 ```
-
-Graph of number of flights by carrier
+Graph of percent of flight delays by Day of Week
 ```{r}
 flight %>%
-  group_by(op_carrier) %>%
-  summarize(
-    Count = n()
-  ) %>%
-  ggplot(
-    aes(
-      x = fct_reorder(op_carrier, Count, .desc = T),
-      y = Count
-    )
-  ) +
-  geom_col(fill = "lightblue", color = "black") +
-  labs(
-    title = "Number of Flights by Airline",
-    x = "Airline",
-    y = "Count"
-  ) +
-  theme(plot.title = element_text(hjust = 0.5))
-```
-
-Percentage of Flight delays
-```{r}
-flight %>%
-  group_by(op_carrier) %>%
+  group_by(dow) %>%
   summarize(
     prop_delayed = mean(delayed_status, na.rm = T) * 100
   ) %>%
   ggplot(
     aes(
-      x = fct_reorder(op_carrier, prop_delayed, .desc = T),
-      y = prop_delayed
+      y = dow,
+      x = prop_delayed
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Percent of Flights Delayed by DOW",
+    y = "DOW",
+    x = "Percent"
+  ) +
+  theme_bw()
+```
+
+Graph of number of flights by carrier
+```{r}
+flight %>%
+  group_by(airline) %>%
+  summarize(
+    Count = n()
+  ) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(airline, Count, .desc = T),
+      x = Count
+    )
+  ) +
+  geom_col(fill = "lightblue", color = "black") +
+  labs(
+    title = "Number of Flights by Airline",
+    y = "Airline",
+    x = "Count"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+This is quite an interesting plot to start with as it already tells us which are the airlines with the most domestic flights in the US:   
+
+1. Southwest Airlines
+2. Delta Airlines
+3. American Airlines
+4. SkyWest Airlines
+5. Atlantic South East Airlines
+
+Now the question to ask ourselves would be: if the top 5 airlines in terms of number of flight, are also the best in terms of arriving on time? We'll see which are the airlines with the most delayed flight to try to answer this:   
+Graphing Number of Flight Delays by Airlines
+```{r}
+subset(flight,delayed_status==1) %>%
+  ggplot(
+    aes(
+      y = airline
+    )
+  ) +
+  geom_bar(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Delayed Flights by airline",
+    y = "Airline",
+    x = "Count"
+  ) +
+  theme_bw()
+```
+From this plot we can now extract the top 5 airlines with the most delayed flights, which are:
+
+1. Southwest Airlines
+2. American Airlines
+3. SkyWest Airlines
+4. Delta Airlines
+5. Atlantic SouthEast Airlines
+
+An airline that stands out of the pack is Republic Airways, they have the sixth largest number of flights, and they are ranked number 9 out of 18 in terms of delayed flights.
+
+Percentage of Flight delays
+```{r}
+flight %>%
+  group_by(airline) %>%
+  summarize(
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(airline, prop_delayed, .desc = T),
+      x = prop_delayed
     )
   ) + 
   geom_col(fill = "lightblue", color = "black") + 
   labs(
     title = "Percent of Flights Delayed by Airline",
-    x = "Airline",
-    y = "Percent Delayed"
+    y = "Airline",
+    x = "Percent Delayed"
   ) + 
   theme_bw()
 ```
