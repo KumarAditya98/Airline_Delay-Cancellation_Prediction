@@ -245,7 +245,30 @@ table(flight$MONTH)
 flight$DAY <- substr(flight$fl_date, 9, 10)
 #table(flight$DAY)
 flight$dow <- lubridate::wday(flight$fl_date,label=TRUE,abbr=FALSE)
+table(flight$dow)
 ```
+
+We can also extract the hour of the scheduled flight to see if time of day is a good predictor
+```{r}
+# flight <- flight %>%
+#   mutate(
+#     hour = case_when(
+#       nchar(crs_dep_time) == 3 ~ substr(crs_dep_time, 2, 3),
+#       nchar(crs_dep_time) == 4 ~ substr(crs_dep_time, 3, 4),
+#       TRUE ~ crs_dep_time
+#     )
+#   )
+
+flight$crs_dep_time <- if_else(nchar(flight$crs_dep_time) != 4, paste0("0", flight$crs_dep_time), as.character(flight$crs_dep_time)) 
+flight$crs_dep_time <- if_else(nchar(flight$crs_dep_time) != 4, paste0("0", flight$crs_dep_time), as.character(flight$crs_dep_time)) 
+
+flight$hour <- as.integer(format(strptime(flight$crs_dep_time, "%H%M"), "%H"))
+
+table(flight$hour)
+
+flight %>% filter(hour == 00)
+```
+
 
 Graphing Number of Flight Delays by Month
 ```{r}
@@ -263,6 +286,7 @@ subset(flight,delayed_status==1) %>%
   ) +
   theme_bw()
 ```
+
 Graphing Number of Flight Delays by Day Of Week
 ```{r}
 subset(flight,delayed_status==1) %>%
