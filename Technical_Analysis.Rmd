@@ -227,7 +227,7 @@ flight$airline
 ```
 We can drop the original columns because it is redundant information.
 ```{r}
-flight <- subset(flight,select=-c(op_carrier,origin,dest))
+flight <- subset(flight,select=-c(op_carrier))
 ```   
 
 Since there are 308 total cities and 322 airports (multiple airports in a city) and 50 States in the dataset, we will not include this in the model because we'll get those many factor levels which will be hard to interpret. There are included only for EDA purpose.
@@ -432,45 +432,101 @@ flight %>%
 Having over 500,000 is too much to process in the model and is causing the session to slow down. I'm going to subset it even smaller
 ```{r}
 set.seed(333)
-sample_size = round(nrow(flight)*0.01)
+sample_size = round(nrow(flight)*0.05)
 flight_small <- flight[sample(nrow(flight), sample_size, replace = F),]
 head(flight_small)
 ```
 
 
 ```{r}
-flight_small$op_carrier <- as.factor(flight_small$op_carrier)
-flight_small$origin <- as.factor(flight_small$origin)
-flight_small$dest <- as.factor(flight_small$dest)
+flight_small$airline <- as.factor(flight_small$airline)
+flight_small$city_orig <- as.factor(flight_small$city_orig)
+flight_small$city_dest <- as.factor(flight_small$city_dest)
 flight_small$month <- as.factor(flight_small$MONTH)
 
-flight_small <- flight_small[!is.na(flight_small$op_carrier),]
-flight_small <- flight_small[!is.na(flight_small$origin),]
-flight_small <- flight_small[!is.na(flight_small$dest),]
-flight_small <- flight_small[!is.na(flight_small$month),]
-flight_small <- flight_small[!is.na(flight_small$delayed_status),]
+# flight_small <- flight_small[!is.na(flight_small$op_carrier),]
+# flight_small <- flight_small[!is.na(flight_small$origin),]
+# flight_small <- flight_small[!is.na(flight_small$dest),]
+# flight_small <- flight_small[!is.na(flight_small$month),]
+# flight_small <- flight_small[!is.na(flight_small$delayed_status),]
 
 str(flight_small)
 ```
 
+We will include the following variables in our initial development of our model to predict delayed status:
+* Airline
+* Origin Airport
+* Destination Airport
+* Month
+* Day of Week
+* Time of day (by hour of departure)
+* Distance
+
+Train-test Split of Data
+```{r}
+set.seed(322)
+flight_sample <- sample(2, nrow(flight_small), replace = TRUE, prob = c(0.8, 0.2))
+
+flight_training <- flight_small[flight_sample == 1, ]
+flight_test <- flight_small[flight_sample == 2, ]
+```
+
 
 ```{r}
-logit <- glm(delayed_status ~ op_carrier + origin + dest + month, data = flight_small, family = "binomial")
+logit <- glm(delayed_status ~ airline + origin + dest + MONTH + dow + hour + distance, data = flight_training, family = "binomial")
 summary(logit)
 ```
 
+The following coefficients are significant:
+```{r}
+k <- summary(logit)$coefficients[,4]
+subset(k, k < 0.05)
+```
 
-Plotting ROC
+*ADD THE REST*
+The following Airlines are significant:
+* Frontier Airlines
+* Skywest Airlines
+* Southwest Airlines
+* Spirit Airlines
+
+The following months are significant:
+* February
+* June
+* October
+* December
+
+The following days of the week:
+* Q?
+* 6?
+
+Hour was also a significant predictor.
+
+Interestingly, none of the origin or destination airports were significant predictors of delays.
+
+Let's plot the ROC
 ```{r}
 loadPkg("pROC") 
 prob <- predict(logit, type = "response" )
-flight_small$prob <- prob
-h <- roc(delayed_status ~ prob, data = flight_small)
-auc(h) # 0.6944
+flight_training$prob <- prob
+h <- roc(delayed_status ~ prob, data = flight_training)
+auc(h) # 0.6543
 plot(h)
 ```
 
-Area under the curve is 0.6944
+```{r}
+flight_test <- flight_test[!(flight_test$origin == "SCE" | flight_test$origin == "TXK"), ]
+flight_test <- flight_test[!(flight_test$dest == "GRI" | flight_test$dest == "WYS"), ]
+
+loadPkg("pROC") 
+prob <- predict(logit, flight_test, type = "response" )
+flight_test$prob <- prob
+h <- roc(delayed_status ~ prob, data = flight_test)
+auc(h) # 0.60
+plot(h)
+```
+
+Area under the curve is 0.6543 on the training data, and 0.60 on the testing data
 
 ```{r}
 library(pscl)
@@ -483,10 +539,23 @@ Confusion Matrix
 ```{r}
 library(caret)
 
-flight_small$response <- as.factor(if_else(flight_small$prob >=0.5, 1, 0))
-flight_small$delayed_status <- as.factor(flight_small$delayed_status)
+flight_test$response <- as.factor(if_else(flight_test$prob >=0.5, 1, 0))
+flight_test$delayed_status <- as.factor(flight_test$delayed_status)
 
-confusionMatrix(flight_small$delayed_status, flight_small$response)
+confusionMatrix(flight_test$response, flight_test$delayed_status)
 ```
 
+Accuracy on model: 62.9%
+Sensitivity / Recall: 19.1% - 409 / (1731+409)
+Specificity: 88.57%
+Precision: 49.5%
 
+The specificity on this model is pretty good, but the other metric could use some improvment. Let's try with a different cutoff value
+```{r}
+flight_test$response <- as.factor(if_else(flight_test$prob >=0.4, 1, 0))
+flight_test$delayed_status <- as.factor(flight_test$delayed_status)
+
+confusionMatrix(flight_test$response, flight_test$delayed_status)
+```
+
+At a lower cutoff value, the accuracy is slightly lower at 59.8% but there is an improvement in the sensitivity of the model at 45.5%
