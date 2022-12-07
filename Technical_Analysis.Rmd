@@ -559,3 +559,70 @@ confusionMatrix(flight_test$response, flight_test$delayed_status)
 ```
 
 At a lower cutoff value, the accuracy is slightly lower at 59.8% but there is an improvement in the sensitivity of the model at 45.5%
+
+## Random Forest
+Train-test splitting
+
+Unable to use factor variables that are more than 53 categories, so we have to drop origin and destination airports
+```{r}
+set.seed(333)
+sample_size = round(nrow(flight)*0.01)
+flight_small <- flight[sample(nrow(flight), sample_size, replace = F),]
+
+set.seed(322)
+flight_sample <- sample(2, nrow(flight_small), replace = TRUE, prob = c(0.8, 0.2))
+
+flight_training <- flight_small[flight_sample == 1, ]
+flight_test <- flight_small[flight_sample == 2, ]
+
+X_train <- subset(flight_training, select = c(airline, MONTH, dow, hour, distance, delayed_status))
+X_test <-subset(flight_test, select = c(airline, MONTH, dow, hour, distance, delayed_status))
+
+X_train$delayed_status <- as.factor(X_train$delayed_status)
+X_train$MONTH <- as.factor(X_train$MONTH)
+X_test$delayed_status <- as.factor(X_test$delayed_status)
+X_test$MONTH <- as.factor(X_test$MONTH)
+
+str(X_train)
+```
+
+Building Model
+```{r}
+library(randomForest)
+
+set.seed(64)
+rf <- randomForest(delayed_status ~ ., data = X_train, proximity = TRUE)
+rf
+```
+
+Making Confusion Matricies
+```{r}
+p1 <- predict(rf, X_train)
+confusionMatrix(p1, X_train$delayed_status)
+```                
+
+99.9% Accuracy on the training set
+
+Confusion Matrix for the Testing set
+```{r}
+p2 <- predict(rf, X_test)
+confusionMatrix(p2, X_test$delayed_status)
+```
+
+Accuracy: 57.8%
+Sensitivity / Recall: 27.4%
+Specificity: 75.0%
+Precision: 38.2%
+
+Again, specificity is good but the other measures are not.
+
+Trying with different amounts of trees
+```{r}
+set.seed(99)
+rf2 <- randomForest(delayed_status ~ ., data = X_train, proximity = TRUE, maxnodes = 10)
+
+p3 <- predict(rf, X_test)
+confusionMatrix(p3, X_test$delayed_status)
+```
+
+
