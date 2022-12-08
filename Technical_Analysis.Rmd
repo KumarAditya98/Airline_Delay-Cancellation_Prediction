@@ -138,7 +138,7 @@ names(flight) <- tolower(names(flight))
 xkabledplyhead(flight,title="The first 5 rows with lower case column names")
 ```
 
-Flight_delay_status and cancellation cannot be used together at the same time. If a flight gets cancelled, then delay does not make sense and should not be applicable to our prediction. Let's make sure that this is the case. If a flight is marked as `cancelled` = 1, then arrival delay and departure delay should be null values.
+Aside from predicting arrival delay, as a secondary analysis we also want to predict flight cancellation prior to it being announced. We notice the presence of another feature in the dataset, that gives us this information - `cancelled`. However, flight_delay_status and cancellation cannot be used together at the same time. If a flight gets cancelled, then delay does not make sense and should not be applicable to our prediction. Let's make sure that this is the case. If a flight is marked as `cancelled` = 1, then arrival delay and departure delay should be null values.
 ```{r}
 can_flight <- subset(flight,cancelled>0)
 nrow(can_flight)
@@ -187,7 +187,7 @@ total
 (nrow(subset(flight,is.na(security_delay)))/total)*100
 (nrow(subset(flight,is.na(late_aircraft_delay)))/total)*100
 ```
-We see that around 81.5% of all our observations contain null values for these columns and for some reason, the information is missing from columns at all the same instances. The conclusion is that we cannot use this column for any useful predictions owing to the large missing values. The choice is to drop these columns too. 
+We see that around 81.5% of all our observations contain null values for these columns and for some reason, the information is missing from columns at all the same instances. The conclusion is that we cannot use this column for any useful predictions owing to the large missing values. The choice is to drop these columns too. However, before doing that, we'll make a copy of flight dataset, maybe we can perform interesting EDA using this column using available rows (finding out the top reason for delay).
 ```{r}
 flight_copy <- flight
 flight <- subset(flight, select=-c(carrier_delay,weather_delay,nas_delay,security_delay,late_aircraft_delay))
@@ -627,8 +627,6 @@ The following days of the week:
 * 6?
 
 Hour was also a significant predictor.
-
-Interestingly, none of the origin or destination airports were significant predictors of delays.
 
 Let's plot the ROC
 ```{r}
