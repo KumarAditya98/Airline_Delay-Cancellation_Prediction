@@ -603,8 +603,10 @@ summary(logit)
 
 The following coefficients are significant:
 ```{r}
-k <- summary(logit)$coefficients[,4]
-subset(k, k < 0.05)
+k <- data.frame(summary(logit)$coefficients)[,c(1,4)]
+
+kj <- subset(k, `Pr...z..` < 0.05)
+kj
 ```
 
 *ADD THE REST*
@@ -684,6 +686,16 @@ confusionMatrix(flight_test$response, flight_test$delayed_status)
 
 At a lower cutoff value, the accuracy is slightly lower at 59.8% but there is an improvement in the sensitivity of the model at 45.5%
 
+Can go even further with a lower cutoff value
+```{r}
+flight_test$response <- as.factor(if_else(flight_test$prob >=0.3, 1, 0))
+flight_test$delayed_status <- as.factor(flight_test$delayed_status)
+
+confusionMatrix(flight_test$response, flight_test$delayed_status)
+```
+
+Recall with this model is 76.9%
+
 ### Trying with other variables
 ```{r}
 logit2 <- glm(delayed_status ~ airline + origin + dest + MONTH + dow + hour + distance + taxi_in + wheels_on + actual_elapsed_time, data = flight_training, family = "binomial")
@@ -692,30 +704,32 @@ summary(logit2)
 
 Significant Coefficients
 ```{r}
-k <- summary(logit)$coefficients[,4]
+k <- summary(logit2)$coefficients[,4]
 subset(k, k < 0.05)
 ```
 
 McFadden
 ```{r}
-pR2(logit)
+pR2(logit2)
 ```
+
+Mc Fadden is 0.206
 
 Plotting ROC
 ```{r}
-prob <- predict(logit, type = "response" )
+prob <- predict(logit2, type = "response" )
 flight_training$prob <- prob
 h <- roc(delayed_status ~ prob, data = flight_training)
-auc(h) # 0.6543
+auc(h) # 0.786
 plot(h)
 ```
 
 Confusion Matrix
 ```{r}
-flight_test$response <- as.factor(if_else(flight_test$prob >=0.5, 1, 0))
-flight_test$delayed_status <- as.factor(flight_test$delayed_status)
+flight_training$response <- as.factor(if_else(flight_training$prob >=0.5, 1, 0))
+flight_training$delayed_status <- as.factor(flight_training$delayed_status)
 
-confusionMatrix(flight_test$response, flight_test$delayed_status)
+confusionMatrix(flight_training$response, flight_training$delayed_status)
 ```
 
 
@@ -778,10 +792,11 @@ Again, specificity is good but the other measures are not.
 Trying with different amounts of trees
 ```{r}
 set.seed(99)
-rf2 <- randomForest(delayed_status ~ ., data = X_train, proximity = TRUE, maxnodes = 10)
+rf2 <- randomForest(delayed_status ~ ., data = X_train, proximity = TRUE, maxnodes = 500)
 
 p3 <- predict(rf, X_test)
 confusionMatrix(p3, X_test$delayed_status)
 ```
 
+Playing around with maxnodes, number of trees, and tree depth doesn't seem to improve the model very well
 
