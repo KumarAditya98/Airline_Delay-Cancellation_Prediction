@@ -269,7 +269,6 @@ table(flight$hour)
 flight %>% filter(hour == 00)
 ```
 
-
 Lets first answer some questions on airline quality in terms of delays through some EDA.
 
 Graph of Number of Flights by Airline
@@ -340,7 +339,7 @@ The first thing to calculate is the overall percentage of delayed flights so tha
 
 ```{r}
 threshold <- mean(flight$delayed_status)
-threshold*100
+round(threshold*100,digits=2)
 ```
 This result goes to say that 36.51% of the flights are delayed, roughly 1 out of every 3 flight is delayed.
 
@@ -506,13 +505,49 @@ flight %>%
 
 Now lets try to see the top 20 most popular cities and how their average arrival delay looks like.   
 
-Lets look at the 20 most popular destination cities in the US.
+Lets look at the 20 most popular destination cities in the US first.
 ```{r}
-dummy4 <- flight %>% group_by(city_dest) %>% summarize(NOF = n()) 
+dummy4 <- flight %>% group_by(city_dest) %>% summarize(NOF = n(),Average_delay = mean(arr_delay)) 
 dummy4 <- dummy4[order(dummy4$NOF,decreasing=TRUE),]
 dummy4 <- dummy4[1:20,]
+
 ggplot(dummy4,aes(x=NOF,y=fct_reorder(city_dest,NOF,.desc=T)))+geom_col(fill="pink",color="black")+labs(title="Top 20 most visited cities",x="Number of Flights",y="City")
 ```
+
+Now lets add another axis and look at the average delay in the top 20 destinations.
+```{r}
+dummy6 <- dummy4 %>% pivot_longer(.,cols = c('NOF','Average_delay'),names_to='value_category') %>% mutate(scaled_value = ifelse(value_category=="Average_delay",value,value/10000))
+ggplot(dummy6,aes(x=scaled_value,y=reorder(city_dest,value,.desc=T),fill=value_category)) + 
+  geom_col(position="dodge") + 
+  scale_x_continuous(sec.axis = sec_axis(~ . *10000 , name = "Number of Flights"))+
+  labs(x="Average Arr Delay",y="City") 
+```
+This graph gives us lots of useful information about the top 20 most visited cities.
+It is interesting to see how Atlanta, having such a high number of landings, has a very low average delay with just over 2 minutes, whereas Newark, a not so popular destination, has such a high minute average delay. 
+New York, which is the 7th most popular destination (not sure why this is the case since its so popular) has the highest average delay out of all, which doesn't add up with it being the 7th most visited place.     San Francisco is another destination that stands out with a high average delay as well as Orlando and Boston.   
+
+Fun Fact - Salt Lake City is famous for its early arriving flight. We should probably go and visit.   
+
+Now lets repeat the same time for top 20 origin cities and associated departure delays with them.
+```{r}
+dummy5 <- flight %>% group_by(city_orig) %>% summarize(NOF = n(),Average_delay = mean(dep_delay)) 
+dummy5 <- dummy5[order(dummy5$NOF,decreasing=TRUE),]
+dummy5 <- dummy5[1:20,]
+dummy7 <- dummy5 %>% pivot_longer(.,cols = c('NOF','Average_delay'),names_to='value_category') %>% mutate(scaled_value = ifelse(value_category=="Average_delay",value,value/10000))
+ggplot(dummy7,aes(x=scaled_value,y=reorder(city_orig,value,.desc=T),fill=value_category)) + 
+  geom_col(position="dodge") + 
+  scale_x_continuous(sec.axis = sec_axis(~ . *10000 , name = "Number of Flights"))+
+  labs(x="Average Dep Delay",y="City") 
+
+```
+This is an important graph when compared to the previous one. It seems like majorly, a city have a high departure delay, corresponds to a high arrival delay as we can see with new york, newark etc. This may lead someone to believe that departure delay always corresponds to arrival delay.    
+However, Salt Lake City to the rescue to save us from this erroneous assumption. Despite having moderately high arrival delay, the flights to this city are somehow able to compensate for this and arrive earlier on average. 
+
+For the last EDA, lets also plot the number of destinations by Airlines to see which airline has the maximum 'coverage'.
+```{r}
+flight %>% group_by(airline) %>% summarize(dest = length(unique(city_dest))) %>% ggplot(aes(x=dest,y=fct_reorder(airline,dest,.desc=T)))+geom_col(fill="pink", color="black")+labs(title="Number of Destinations per Airline",x="Count of Destinations",y="Airline")
+```
+Delta Air Lines has once again managed to appear in top 3, providing with the 3rd highest coverage. Its a no brainer at this point to use this airline for domestic travel in the US.
 
 # Modeling
 
