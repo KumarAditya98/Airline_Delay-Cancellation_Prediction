@@ -223,7 +223,6 @@ flight$city_orig <- airports$CITY[match(flight$origin, airports$IATA_CODE)]
 flight$city_dest <- airports$CITY[match(flight$dest, airports$IATA_CODE)]
 flight$state_orig <- airports$STATE[match(flight$origin, airports$IATA_CODE)]
 flight$state_dest <- airports$STATE[match(flight$dest, airports$IATA_CODE)]
-flight$airline
 ```
 We can drop the original columns because it is redundant information.
 ```{r}
@@ -313,7 +312,7 @@ flight %>%
   ) %>%
   ggplot(
     aes(
-      x = MONTH,
+      x = fct_reorder(MONTH, prop_delayed, .desc = T),
       y = prop_delayed
     )
   ) +
@@ -325,6 +324,7 @@ flight %>%
   ) +
   theme_bw()
 ```
+
 Graph of percent of flight delays by Day of Week
 ```{r}
 flight %>%
@@ -334,7 +334,7 @@ flight %>%
   ) %>%
   ggplot(
     aes(
-      y = dow,
+      y = fct_reorder(dow, prop_delayed, .desc = T),
       x = prop_delayed
     )
   ) +
@@ -347,7 +347,7 @@ flight %>%
   theme_bw()
 ```
 
-Graph of number of flights by carrier
+Graph of number of flights by Airline
 ```{r}
 flight %>%
   group_by(airline) %>%
@@ -377,53 +377,84 @@ This is quite an interesting plot to start with as it already tells us which are
 5. Atlantic South East Airlines
 
 Now the question to ask ourselves would be: if the top 5 airlines in terms of number of flight, are also the best in terms of arriving on time? We'll see which are the airlines with the most delayed flight to try to answer this:   
+
 Graphing Number of Flight Delays by Airlines
 ```{r}
 subset(flight,delayed_status==1) %>%
+  group_by(airline) %>%
+  summarize(
+    Count = n()
+  ) %>%
   ggplot(
     aes(
-      y = airline
+      y = fct_reorder(airline, Count, .desc = T),
+      x = Count
     )
   ) +
-  geom_bar(fill = "lightblue", col = "black") +
+  geom_col(fill = "lightblue", color = "black") +
   labs(
-    title = "Number of Delayed Flights by airline",
+    title = "Number of Delayed Flights by Airline",
     y = "Airline",
     x = "Count"
   ) +
-  theme_bw()
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 From this plot we can now extract the top 5 airlines with the most delayed flights, which are:
 
 1. Southwest Airlines
-2. American Airlines
-3. SkyWest Airlines
-4. Delta Airlines
+2. Delta Airlines
+3. American Airlines
+4. SkyWest Airlines
 5. Atlantic SouthEast Airlines
 
-An airline that stands out of the pack is Republic Airways, they have the sixth largest number of flights, and they are ranked number 9 out of 18 in terms of delayed flights.
+It appears as if the Airlines with the most number of flights, tend to have more number of delayed flights as well.
 
-Percentage of Flight delays
+However, this may not be the best way to judge the performance of an airlines. To do so, we will calculate the percentage of delayed flights and the average delay time per airline, as that might be a better representation of how the airlines really perform.
+
+The first thing to calculate is the overall percentage of delayed flights so that we can do proper comparisons with each airline. In other words, airlines would want to be below the average percentage of delayed flights to be in an acceptable position, so this mean number will represent our threshold. Airlines above would be by common sense the ones that travelers would want to avoid as it means you those will have the most delays.
+
 ```{r}
-flight %>%
-  group_by(airline) %>%
-  summarize(
-    prop_delayed = mean(delayed_status, na.rm = T) * 100
-  ) %>%
-  ggplot(
-    aes(
-      y = fct_reorder(airline, prop_delayed, .desc = T),
-      x = prop_delayed
-    )
-  ) + 
-  geom_col(fill = "lightblue", color = "black") + 
-  labs(
-    title = "Percent of Flights Delayed by Airline",
-    y = "Airline",
-    x = "Percent Delayed"
-  ) + 
-  theme_bw()
+threshold <- mean(flight$delayed_status)
+threshold*100
 ```
+This result goes to say that 36.51% of the flights are delayed, roughly 1 out of every 3 flight is delayed.
+
+```{r}
+test_1 <- flight %>% group_by(airline) %>% summarize(delays = sum(delayed_status))
+test_2 <- flight %>% group_by(airline) %>% summarize(count = n())
+dummy2 <- full_join(test_1,test_2,by='airline')
+dummy2$percent_delay <- round((dummy2$delays/dummy2$count)*100,digits=2)
+```   
+
+Using this extra manipulated data, we can plot the percentage of flight delays per airline, also showcasing the threshold value that is calculated from the data. This should give us a good indicator of which airline performs well.  
+
+```{r}
+ggplot(data=dummy2, 
+       aes(x=percent_delay,y=fct_reorder(airline, percent_delay, .desc = T)))+geom_col(fill = "lightblue", color = "black")+geom_vline(xintercept=36.51,color='blue',linetype='dashed',size=0.5)+labs(title="Percentage of delay per airline",x="Percent",y="Airline")
+```
+
+This is provides us with really interesting observations. 
+
+Delta Airlines is the second airline with the highest number of flights, at the same time is again the second highest number of delayed flights, but in terms of percentage of delayed flights, it is the airline with the best percentage at 29.02%. That represents ~7% below the threshold.
+
+American airlines in another airline that tops the list in terms of number of flights but is still below the threshold value in terms of delay. So these two airlines must be the most sought after by passengers if they want to avoid delay.
+
+Southwest Airlines has the most flights and consequently, a higher number of delayed flights as well, but as our last plot suggests, it is not the worst, it is the 6th best and is above the threshold value by over 1%, so definitely not great compared to Delta Airlines.   
+Similarly Atlantic SouthEast Airlines and United airlines have large number of flights but perform somewhat moderately when compared to other airlines.   
+
+Now coming to the bad airlines. The top 4 airlines with the highest percent of delays happen to be the top 4 airlines with the least number of flights as well. These airlines should definitely be avoided by passengers if they want to ensure timely arrival. 
+
+Further airline testing. Plotting total number of delay in minutes by each airline
+```{r}
+flight %>% group_by(airline) %>% summarize(total = sum(arr_delay)) %>% ggplot(aes(x=total,fct_reorder(airline,total,.desc=T)))+geom_col(color='light blue',fill="pink") + labs(title="Total minutes of flight delay",x="Sum of minutes",y="Airline")
+```
+With the help of this plot, we see that Southwest Airlines has the highest flight delays in number of minutes. So a passenger flying this airline can expect to extremely high delays (in minutes) in their travel.   
+Delta airline seems to do well here as well, being the 3rd highest in total delay duration, continuing to catch our attention!   
+
+Another airline that comes into notice with this plot is the Alaska Airlines. The negative bar plot indicates that they are prone to actually arriving earlier than usual by a larger margin than their flights get delayed! Which is good news for the passengers, most of the times.   
+
+Verdict: Airlines to travel by- Delta Airlines, Alaska Airlines.
+
 
 # Modeling
 
