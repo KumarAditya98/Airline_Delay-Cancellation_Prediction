@@ -268,84 +268,7 @@ table(flight$hour)
 flight %>% filter(hour == 00)
 ```
 
-
-Graphing Number of Flight Delays by Month
-```{r}
-subset(flight,delayed_status==1) %>%
-  ggplot(
-    aes(
-      x = MONTH
-    )
-  ) +
-  geom_bar(fill = "lightblue", col = "black") +
-  labs(
-    title = "Number of Delayed Flights by Month",
-    x = "Month",
-    y = "Count"
-  ) +
-  theme_bw()
-```
-
-Graphing Number of Flight Delays by Day Of Week
-```{r}
-subset(flight,delayed_status==1) %>%
-  ggplot(
-    aes(
-      y = dow
-    )
-  ) +
-  geom_bar(fill = "lightblue", col = "black") +
-  labs(
-    title = "Number of Delayed Flights by DOW",
-    y = "DOW",
-    x = "Count"
-  ) +
-  theme_bw()
-```
-
-Graph of percent of flight delays by month
-```{r}
-flight %>%
-  group_by(MONTH) %>%
-  summarize(
-    prop_delayed = mean(delayed_status, na.rm = T) * 100
-  ) %>%
-  ggplot(
-    aes(
-      x = fct_reorder(MONTH, prop_delayed, .desc = T),
-      y = prop_delayed
-    )
-  ) +
-  geom_col(fill = "lightblue", col = "black") +
-  labs(
-    title = "Percent of Flights Delayed by Month",
-    x = "Month",
-    y = "Percent"
-  ) +
-  theme_bw()
-```
-
-Graph of percent of flight delays by Day of Week
-```{r}
-flight %>%
-  group_by(dow) %>%
-  summarize(
-    prop_delayed = mean(delayed_status, na.rm = T) * 100
-  ) %>%
-  ggplot(
-    aes(
-      y = fct_reorder(dow, prop_delayed, .desc = T),
-      x = prop_delayed
-    )
-  ) +
-  geom_col(fill = "lightblue", col = "black") +
-  labs(
-    title = "Percent of Flights Delayed by DOW",
-    y = "DOW",
-    x = "Percent"
-  ) +
-  theme_bw()
-```
+Lets first answer some questions on airline quality in terms of delays through some EDA.
 
 Graph of number of flights by Airline
 ```{r}
@@ -455,6 +378,139 @@ Another airline that comes into notice with this plot is the Alaska Airlines. Th
 
 Verdict: Airlines to travel by- Delta Airlines, Alaska Airlines.
 
+Worst and best months to travel based on Flight delays.
+```{r}
+subset(flight,delayed_status==1) %>%
+  group_by(MONTH) %>% summarize(count = n()) %>% ggplot(
+    aes(
+      x = fct_reorder(MONTH,count,.desc=T),
+      y = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Delayed Flights by Month",
+    x = "Month",
+    y = "Count"
+  ) +
+  theme_bw()
+```
+Seems like the best month to travel is September with the least number of Delays, whereas June consists of a lot of delays.
+
+However, this is just an absolute number. A better way to find the best and worst months to travel will be through proportions. Lets first plot the count of flights that run in each month.
+```{r}
+flight %>%
+  group_by(MONTH) %>% summarize(count = n()) %>% ggplot(
+    aes(
+      x = fct_reorder(MONTH,count,.desc=T),
+      y = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Flights by Month",
+    x = "Month",
+    y = "Count"
+  ) +
+  theme_bw()
+```
+Looks the busiest months are July, August and May. One possible explanation is start and end of summer vacations??
+
+Now lets plot the proportion.
+Graph of percent of flight delays by month
+```{r}
+flight %>%
+  group_by(MONTH) %>%
+  summarize(
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      x = fct_reorder(MONTH, prop_delayed, .desc = T),
+      y = prop_delayed
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Percent of Flights Delayed by Month",
+    x = "Month",
+    y = "Percent"
+  ) +
+  theme_bw()
+```
+Seems like September runs the least number of delayed flights being the 9th busiest month and has the lowest proportion of delay. October, too is the 7th busiest month and 2nd least delay month. Seems like airline companies really buckle up on delays in these months whereas maintaining a moderately high number of flights.
+
+January runs the 2nd least number of flights with the 4th highest delays. Must be stressful for the few passengers that travel then.
+
+March and July run a large number of flights with a large number of delays.
+
+Lets repeat the same exercise for day of the week. Graphing Number of Flight Delays by Day Of Week
+```{r}
+subset(flight,delayed_status==1) %>% group_by(dow) %>% summarize(count = n()) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(dow,count,.desc=T),
+      x = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Delayed Flights by DOW",
+    y = "DOW",
+    x = "Count"
+  ) +
+  theme_bw()
+```
+Now plotting the total number of flights in the week.
+```{r}
+flight %>%
+  group_by(dow) %>% summarize(count = n()) %>% ggplot(
+    aes(
+      y = fct_reorder(dow,count,.desc=T),
+      x = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Flights by Day of Week",
+    y = "DOW",
+    x = "Count"
+  ) +
+  theme_bw()
+```
+Seems like the busiest days are Friday and Thursday and a result, they also have the most delayed number of flights. Whereas, Saturday and Sunday are least busiest with lesser number of delays.
+
+Graph of percent of flight delays by Day of Week
+```{r}
+flight %>%
+  group_by(dow) %>%
+  summarize(
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(dow, prop_delayed, .desc = T),
+      x = prop_delayed
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Percent of Flights Delayed by DOW",
+    y = "DOW",
+    x = "Percent"
+  ) +
+  theme_bw()
+```
+
+Now lets try to see the top 20 most popular cities and how their average arrival delay looks like.   
+
+Lets look at the 20 most popular destination cities in the US.
+```{r}
+dummy4 <- flight %>% group_by(city_dest) %>% summarize(NOF = n()) 
+dummy4 <- dummy4[order(dummy4$NOF,decreasing=TRUE),]
+dummy4 <- dummy4[1:20,]
+ggplot(dummy4,aes(x=NOF,y=fct_reorder(city_dest,NOF,.desc=T)))+geom_col(fill="pink",color="black")+labs(title="Top 20 most visited cities",x="Number of Flights",y="City")
+```
 
 # Modeling
 
