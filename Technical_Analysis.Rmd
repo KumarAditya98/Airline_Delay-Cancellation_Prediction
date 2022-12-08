@@ -229,8 +229,6 @@ We can drop the original columns because it is redundant information.
 flight <- subset(flight,select=-c(op_carrier))
 ```   
 
-Since there are 308 total cities and 322 airports (multiple airports in a city) and 50 States in the dataset, we will not include this in the model because we'll get those many factor levels which will be hard to interpret. There are included only for EDA purpose.
-
 Now to answer one of the SMART questions, since there is slight skewness between the predicted variable, accuracy will not be enough as a criteria to judge our model. Precision and recall will play an important role as well. However, as the business problem is predicting whether a flight is delayed or not, it is more important to catch all flights that are actually delayed as opposed to optimizing whether a predicted delay is correct or not. There is no harm in proactively anticipating and preparing for flights that have anticipated delayed and they turn out to be not delayed. However, there is greater business loss if we miss out on flights that delayed but we were not able to identify them.
 
 In technical terms, our models need to be tuned to have a higher **recall** as opposed to **precision**.
