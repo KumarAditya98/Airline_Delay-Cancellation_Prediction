@@ -82,7 +82,7 @@ Glossary of all the columns in the dataset:
 
 *Source : [kaggle](https://www.kaggle.com/datasets/yuanyuwendymu/airline-delay-and-cancellation-data-2009-2018?select=2009.csv)*
 
-The primary objective of the project is to determine whether a flight is going to be delayed or not, **prior to this information being displayed on the departure board**. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a numeric columns with the time difference in the arrival as minutes. Positive values indicate a delay, while a negative value indicates an early arrival. As first step, we'll have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
+The primary objective of the project is to predict whether a flight is going to be delayed or not, **prior to this information being displayed on the departure board**. Therefore, to define delay, we will look at the column `ARR_DELAY`. If a flight arrives late at its destination, it will be considered as delayed. This is a numeric columns with the time difference in the arrival as minutes. Positive values indicate a delay, while a negative value indicates an early arrival. As first step, we will have a look at  the distribution of these levels in the dataset as that is an important aspect while training our models.
 ```{r}
 nrow(subset(flight,ARR_DELAY>0))
 nrow(subset(flight,ARR_DELAY<=0))
@@ -103,7 +103,7 @@ From the glossary, we can also identify a few attributes that give a lot of info
 * Taxi In
 * Actual Elapsed Time   
 
-It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them. The model with these attributes will result in better accuracy, precision and recall.
+It may not be a good idea to include these attributes during model building as this information is available after the flight takes off from the source airport and is not logical to make use of to predict whether the flight is going to be delayed. To demonstrate this idea, we can build two models - one without these attributes and one with them. The model with these attributes will result in better accuracy, precision, and recall.
 
 “Departure Delay” is not listed above, which may be considered a borderline variable known just as the flight departs from source. However, departure delay does not always indicate a delay in arrival. It could be the case that a flight has departure delay but airlines try to account for these delays by reducing their elapse time, and in some cases, they succeed and the planes end up arriving on time or even earlier.    
 We can see this with the graph below - 
@@ -138,7 +138,7 @@ names(flight) <- tolower(names(flight))
 xkabledplyhead(flight,title="The first 5 rows with lower case column names")
 ```
 
-Aside from predicting arrival delay, as a secondary analysis we also want to predict flight cancellation prior to it being announced. We notice the presence of another feature in the dataset, that gives us this information - `cancelled`. However, flight_delay_status and cancellation cannot be used together at the same time. If a flight gets cancelled, then delay does not make sense and shouldn't be applicable. Lets make sure that this is the case. If a flight is marked as `cancelled` = 1, then arrival delay and departure delay should be null values.
+Aside from predicting arrival delay, as a secondary analysis we also want to predict flight cancellation prior to it being announced. We notice the presence of another feature in the dataset, that gives us this information - `cancelled`. However, flight_delay_status and cancellation cannot be used together at the same time. If a flight gets cancelled, then delay does not make sense and should not be applicable to our prediction. Let's make sure that this is the case. If a flight is marked as `cancelled` = 1, then arrival delay and departure delay should be null values.
 ```{r}
 can_flight <- subset(flight,cancelled>0)
 nrow(can_flight)
@@ -231,11 +231,12 @@ flight <- subset(flight,select=-c(op_carrier))
 
 Since there are 308 total cities and 322 airports (multiple airports in a city) and 50 States in the dataset, we will not include this in the model because we'll get those many factor levels which will be hard to interpret. There are included only for EDA purpose.
 
-Now to answer one of the SMART questions, since there is slight skewness between the predicted variable, accuracy will not be enough as a criteria to judge our model. Precision and recall will play an important role as well. However, as the business problem is predicting whether a flight is delayed or not, it is more important to catch all flights that are actually delayed as opposed to optimizing whether a predicted delay is correct or not. There is no harm in proactively anticipating and preparing for flights that have anticipated delayed and they turn out to be not delayed. However, there is greater business loss if we miss out on flights that delayed but we were not able to identify them.    
+Now to answer one of the SMART questions, since there is slight skewness between the predicted variable, accuracy will not be enough as a criteria to judge our model. Precision and recall will play an important role as well. However, as the business problem is predicting whether a flight is delayed or not, it is more important to catch all flights that are actually delayed as opposed to optimizing whether a predicted delay is correct or not. There is no harm in proactively anticipating and preparing for flights that have anticipated delayed and they turn out to be not delayed. However, there is greater business loss if we miss out on flights that delayed but we were not able to identify them.
+
 In technical terms, our models need to be tuned to have a higher **recall** as opposed to **precision**.
 
 
-## Feature engineering and EDA   
+## Feature Engineering and EDA   
 
 We can also make a month and a day variable, which could be good predictors of delays. Also creating a day of the week variable starting with Sunday.
 ```{r}
@@ -268,9 +269,10 @@ table(flight$hour)
 flight %>% filter(hour == 00)
 ```
 
+
 Lets first answer some questions on airline quality in terms of delays through some EDA.
 
-Graph of number of flights by Airline
+Graph of Number of Flights by Airline
 ```{r}
 flight %>%
   group_by(airline) %>%
@@ -291,7 +293,7 @@ flight %>%
   ) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
-This is quite an interesting plot to start with as it already tells us which are the airlines with the most domestic flights in the US:   
+This is quite an interesting plot to start with as it already tells us which are the airlines that have the most domestic flights in the US:   
 
 1. Southwest Airlines
 2. Delta Airlines
@@ -360,9 +362,9 @@ This is provides us with really interesting observations.
 
 Delta Airlines is the second airline with the highest number of flights, at the same time is again the second highest number of delayed flights, but in terms of percentage of delayed flights, it is the airline with the best percentage at 29.02%. That represents ~7% below the threshold.
 
-American airlines in another airline that tops the list in terms of number of flights but is still below the threshold value in terms of delay. So these two airlines must be the most sought after by passengers if they want to avoid delay.
+American Airlines in another airline that tops the list in terms of number of flights but is still below the threshold value in terms of delay. So these two airlines must be the most sought after by passengers if they want to avoid delay.
 
-Southwest Airlines has the most flights and consequently, a higher number of delayed flights as well, but as our last plot suggests, it is not the worst, it is the 6th best and is above the threshold value by over 1%, so definitely not great compared to Delta Airlines.   
+Southwest Airlines has the most flights and consequently, a higher number of delayed flights as well, but as our last plot suggests, it is not the worst, it is the sixth best and is above the threshold value by over 1%, so definitely not great compared to Delta Airlines.   
 Similarly Atlantic SouthEast Airlines and United airlines have large number of flights but perform somewhat moderately when compared to other airlines.   
 
 Now coming to the bad airlines. The top 4 airlines with the highest percent of delays happen to be the top 4 airlines with the least number of flights as well. These airlines should definitely be avoided by passengers if they want to ensure timely arrival. 
@@ -376,7 +378,7 @@ Delta airline seems to do well here as well, being the 3rd highest in total dela
 
 Another airline that comes into notice with this plot is the Alaska Airlines. The negative bar plot indicates that they are prone to actually arriving earlier than usual by a larger margin than their flights get delayed! Which is good news for the passengers, most of the times.   
 
-Verdict: Airlines to travel by- Delta Airlines, Alaska Airlines.
+Verdict: Airlines to travel by - Delta Airlines, Alaska Airlines.
 
 Worst and best months to travel based on Flight delays.
 ```{r}
@@ -516,7 +518,7 @@ ggplot(dummy4,aes(x=NOF,y=fct_reorder(city_dest,NOF,.desc=T)))+geom_col(fill="pi
 
 ## Logistic Regression
 
-Having over 500,000 is too much to process in the model and is causing the session to slow down. I'm going to subset it even smaller
+Having over 500,000 is too much to process in the model and is causing the session to slow down. To prevent this, we are going to further subset the dataset before processing.
 ```{r}
 set.seed(333)
 sample_size = round(nrow(flight)*0.05)
@@ -546,7 +548,7 @@ We will include the following variables in our initial development of our model 
 * Destination Airport
 * Month
 * Day of Week
-* Time of day (by hour of departure)
+* Time of Day (by hour of departure)
 * Distance
 
 Train-test Split of Data
