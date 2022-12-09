@@ -672,7 +672,7 @@ Sensitivity / Recall: 19.1% - 409 / (1731+409)
 Specificity: 88.57%
 Precision: 49.5%
 
-The specificity on this model is pretty good, but the other metric could use some improvment. Let's try with a different cutoff value
+The specificity on this model is pretty good, but the other metric could use some improvement. Let's try with a different cutoff value
 ```{r}
 flight_test$response <- as.factor(if_else(flight_test$prob >=0.4, 1, 0))
 flight_test$delayed_status <- as.factor(flight_test$delayed_status)
@@ -690,7 +690,7 @@ flight_test$delayed_status <- as.factor(flight_test$delayed_status)
 confusionMatrix(flight_test$response, flight_test$delayed_status)
 ```
 
-Recall with this model is 76.9%
+Recall with this model is **76.9%**.
 
 ### Trying with other variables
 ```{r}
