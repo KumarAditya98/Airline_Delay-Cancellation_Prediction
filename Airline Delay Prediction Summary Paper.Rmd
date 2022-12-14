@@ -1,0 +1,1146 @@
+---
+title: "Domestic Flight Delays Prediction: Airline Delays Data"
+author: "Jack McMorrow, Aditya Kumar, Anthony C. Okoye"
+date: "2022-12-14"
+output:
+  rmdformats::readthedown:
+      toc_float: true
+      toc_depth: 3
+      number_sections: true
+      code_folding: hide
+      includes:
+        before_body: header.tmphtml
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r init, include=FALSE}
+knitr::opts_chunk$set(warning = F, results = "hide", message = F, echo = F)
+options(scientific=T, digits = 3) 
+```
+
+```{r importing data and preprocessing, include=FALSE}
+rm(list=ls())
+library(tidyverse)
+library(ggplot2)
+library(ezids)
+library(dplyr)
+
+airlines <- data.frame(read.csv("data/airlines.csv"))
+airports <- data.frame(read.csv("data/airports.csv"))
+
+```
+
+# Project Background
+
+Flight delay has become a very important subject for air transportation
+all over the world because of the associated financial losses that the
+aviation industry experiences. These delays not only cause
+inconveniences to the passengers but also to the airlines. Due to the
+increased travel time, passengers are forced to spend more money on food
+and lodging, ultimately resulting in stress. Airlines face extra costs
+due to crew repositioning, fuel consumption while trying to reduce
+elapsed times, and a variety of other factors that could potentially
+reduce their reputation and lower passenger demand. These delays can be
+attributed to a variety of factors, including air congestion, poor
+weather conditions, mechanical problems, difficulties boarding
+passengers, and simply the airline's inability to handle the demand.
+
+So, what can be done as a passenger to avoid delayed flights? Is it
+possible to know if your flight will be delayed before it comes up on
+the departure boards? Or perhaps, before you being inside the plane? The
+answer to these questions is maybe. By using Machine Learning (ML)
+Algorithms we can try to predict if a flight will be delayed in many
+ways.
+
+# About the Data
+
+The U.S Department of Transportation's (DOT) Bureau of Transportation
+Statistics tracks the on-time performance of domestic flights operated
+by large air carriers. Summary information on the number of on-time,
+delayed, canceled, and diverted flights is published in DOT's monthly
+Air Travel Consumer Report. This particular dataset has been made
+available on Kaggle
+[<https://www.kaggle.com/datasets/usdot/flight-delays>], which was the
+source of reference. The entire dataset consists of data ranging from
+the year 2009 till 2018. For the purpose of analysis, we would be
+picking up the dataset for 2015 only which has 5,819,079 observations
+and 35 different variables. Due to computational limitations, we would
+perform our analysis for this project using just 10% of the available
+observations. We also used the airports and airlines dataset to map it
+into our flights dataset for exploratory data analysis (EDA) purposes.
+
+```{r}
+#set.seed(333)
+#sample_size = round(nrow(flights)*0.1)
+#flights_sample <- flights[sample(nrow(flights), sample_size, replace = F),]
+#head(flights_sample)
+```
+
+Exporting smaller sample
+
+```{r}
+#write.csv(flights_sample, file = "data/flights_sample.csv",row.names=F)
+
+flight <- read.csv("data/flights_sample.csv")
+```
+
+```{r}
+xkabledplyhead(flight,title="The first 5 rows of the dataset")
+str(flight)
+```
+
+This data now has `r nrow(flight)` rows.
+
+## SMART Questions
+
+1.  Is there a delay_label imbalance in the dataset and how to go around
+    it? Being a classification problem, what is the best metric to
+    evaluate our model?
+2.  Which feature is highly correlated with delay_label?
+3.  Which classification methodology produces the best results to
+    predict flight delay?
+4.  With what accuracy / precision / recall can we predict using the
+    best model whether a flight is going to be delayed before it is
+    announced on the departure board?
+5.  Which classification methodology produces the best results to
+    predict flight cancellations?
+6.  With what accuracy / precision / recall can we predict using the
+    best model whether a flight is going to be canceled?
+
+By using Statistical Modeling and Machine learning methods, we will
+attempt to predict if a flight is going to be delayed, based on features
+that are available prior to this information being displayed on the
+airport schedule boards.
+
+Now we will begin our analysis.
+
+# Data Preprocessing and Initial Analysis
+
+Glossary of all the columns in the dataset:
+
+-   FL_DATE = Date of the Flight
+-   OP_CARRIER = Airline Identifier
+-   OP_CARRIER_FL_NUM = Flight Number
+-   ORIGIN = Starting Airport Code
+-   DEST = Destination Airport Code
+-   CRS_DEP_TIME = Planned Departure Time
+-   DEP_TIME = Actual Departure Time
+-   DEP_DELAY = Total Delay on Departure in minutes
+-   TAXI_OUT = The time duration elapsed between departure from the
+    origin airport gate and wheels off
+-   WHEELS_OFF = The time point that the aircraft's wheels leave the
+    ground
+-   WHEELS_ON = The time point that the aircraft's wheels touch on the
+    ground
+-   TAXI_IN = The time duration elapsed between wheels-on and gate
+    arrival at the destination airport
+-   CRS_ARR_TIME = Planned arrival time
+-   ARR_TIME = Actual Arrival Time = ARRIVAL_TIME - SCHEDULED_ARRIVAL
+-   ARR_DELAY = Total Delay on Arrival in minutes
+-   CANCELLED = Flight Cancelled (1 = cancelled)
+-   CANCELLATION_CODE = Reason for Cancellation of flight: A -
+    Airline/Carrier; B - Weather; C - National Air System; D - Security
+-   DIVERTED = Aircraft landed on different airport that the one
+    scheduled
+-   CRS_ELAPSED_TIME = Planned time amount needed for the flight trip
+-   ACTUAL_ELAPSED_TIME = AIR_TIME+TAXI_IN+TAXI_OUT
+-   AIR_TIME = The time duration between wheels_off and wheels_on time
+-   DISTANCE = Distance between two airports
+-   CARRIER_DELAY = Delay caused by the airline in minutes
+-   WEATHER_DELAY = Delay caused by weather
+-   NAS_DELAY = Delay caused by air system
+-   SECURITY_DELAY = caused by security reasons
+-   LATE_AIRCRAFT_DELAY = Delay caused by security
+
+*Source :
+[kaggle](https://www.kaggle.com/datasets/yuanyuwendymu/airline-delay-and-cancellation-data-2009-2018?select=2009.csv)*
+
+## Project Obejctive
+
+The primary objective of the project is to predict whether a flight is
+going to be delayed or not, **prior to this information being displayed
+on the departure board**. Therefore, to define delay, we will look at
+the column `ARR_DELAY`. If a flight arrives late at its destination, it
+will be considered as delayed. This is a numeric columns with the time
+difference in the arrival as minutes. Positive values indicate a delay,
+while a negative value indicates an early arrival. As first step, we
+will have a look at the distribution of these levels in the dataset as
+that is an important aspect while training our models.
+
+```{r}
+nrow(subset(flight,ARR_DELAY>0))
+nrow(subset(flight,ARR_DELAY<=0))
+```
+
+We can see that there are more flights that are not delayed than flights
+that are delayed. This might represent some imbalance in our dataset.
+
+Let's create a new binary variable `DELAYED_STATUS` to indicate whether
+a flight was delayed `1` or not delayed `0`.
+
+```{r}
+flight$DELAYED_STATUS <- if_else(flight$ARR_DELAY > 0, 1, 0)
+
+table(flight$DELAYED_STATUS)
+```
+
+From the glossary, we can also identify a few attributes that give a lot
+of information on whether a flight is going to be delayed. These columns
+are:
+
+-   Wheels On
+-   Taxi In
+-   Actual Elapsed Time
+
+It may not be a good idea to include these attributes during model
+building as this information is available after the flight takes off
+from the source airport and is not logical to make use of to predict
+whether the flight is going to be delayed. To demonstrate this idea, we
+can build two models - one without these attributes and one with them.
+The model with these attributes will result in better accuracy,
+precision, and recall.
+
+"Departure Delay" is not listed above, which may be considered a
+borderline variable known just as the flight departs from source.
+However, departure delay does not always indicate a delay in arrival. It
+could be the case that a flight has departure delay but airlines try to
+account for these delays by reducing their elapse time, and in some
+cases, they succeed and the planes end up arriving on time or even
+earlier.
+
+We can see this with the graph below -
+
+```{r}
+dummy1 <- flight %>% pivot_longer(.,cols = c('DEP_DELAY','ARR_DELAY'),names_to='value_category')
+ggplot(dummy1,aes(fill=value_category,x=value,y=OP_CARRIER)) + geom_bar(position="dodge", stat="identity")+labs(title="Total Arrival/Departure Delay per Airline",x="Total Arrival/Departure Delay (mins)",y="Unique Airline Identifier")
+```
+
+We get a rough idea that departure delays do not necessarily amount to
+an arrival delay with this plot, as some airlines can be seen to have
+total departure delays greater than their arrival delays.
+
+Looking at the mean arrival/departure delays will reinforce the point
+further.
+
+```{r}
+group1 <- dummy1 %>% group_by(OP_CARRIER,value_category) %>% 
+  summarize(
+  mean_value = mean(value,na.rm=T)
+)
+ggplot(group1,aes(fill=value_category,x=mean_value,y=OP_CARRIER)) + geom_bar(position="dodge", stat="identity")+labs(title="Mean Arrival/Departure Delay per Airline",x="Mean Arrival/Departure Delay (mins)",y="Unique Airline Identifier")
+```
+
+We can clearly see that airlines that are prone to high departure
+delays, do not necessarily need to have a high arrival delay as well.
+
+Before we proceed further, we noticed the presence of a column called
+`Unnamed..27`, and most of the rows at first glance are nulls. Looking
+for all the null values in this column.
+
+```{r}
+sum(is.na(flight$Unnamed..27))
+```
+
+We see that all rows for this column are null. Therefore, we can drop
+this column.
+
+```{r}
+flight <- subset(flight,select=-c(Unnamed..27))
+```
+
+Before moving on, typing the column names in caps all the time is very
+exhausting. Therefore, we will further convert the column names to all
+lower cases.
+
+```{r}
+names(flight) <- tolower(names(flight))
+xkabledplyhead(flight,title="The first 5 rows with lower case column names")
+```
+
+Aside from predicting arrival delay, as a secondary analysis we also
+want to predict flight cancellation prior to it being announced. We
+notice the presence of another feature in the dataset, that gives us
+this information - `cancelled`. However, flight_delay_status and
+cancellation cannot be used together at the same time. If a flight gets
+cancelled, then delay does not make sense and should not be applicable
+to our prediction. Let's make sure that this is the case. If a flight is
+marked as `cancelled` = 1, then arrival delay and departure delay should
+be null values.
+
+```{r}
+can_flight <- subset(flight,cancelled>0)
+nrow(can_flight)
+sum(is.na(can_flight$arr_delay))
+```
+
+From the above, we see that our assumption stands. For flights that were
+cancelled, arrival delay is always null. So to build a model that
+predicts whether a flight is delayed, we cannot use the data for when
+flights were cancelled as we will get erroneous results. Therefore, we
+will subset our dataset for only `cancelled` = 0.
+
+```{r}
+flight <- subset(flight,cancelled==0)
+flight <- subset(flight,select=-c(cancelled))
+xkabledplyhead(flight,title="The first 5 rows of the new dataset")
+```
+
+In addition to this, there's another column which is called the
+`cancellation_code` which explains the cancellation reason for these
+cancelled flights. Since, we've already subset to `cancelled` = 0, we
+expect to see nulls in this column as there needn't be a cancellation
+reason any longer. Verifying this with below code.
+
+```{r}
+nrow(flight)
+nrow(subset(flight,is.na(cancellation_code)||cancellation_code==""))
+```
+
+With the above code, we see that all values in `cancellation_code` are
+now null or blank values. Therefore, we can remove this column from the
+dataset.
+
+```{r}
+flight = subset(flight,select=-c(cancellation_code))
+xkabledplyhead(flight,title="The first 5 rows of the dataset after removing cancellation_code")
+```
+
+Another variable that catches attention is `diverted`. A diverted flight
+is one that has landed in a different airport than the one scheduled.
+This is normally temporary and the airline has the responsibility of
+taking passengers to their final destination without any extra cost.
+Therefore this is ideally considered a delayed flight.
+
+```{r}
+unique(flight$diverted)
+nrow(subset(flight,diverted==1))
+nrow(subset(flight,diverted==0))
+```
+
+This column contains only 2 values, 0 and 1. The 1's are extremely small
+in occurrence. The assumption here is that 1 indicates that a flight has
+been diverted. A diverted flight should have the `arr_delay` column
+populated, as it should definitely have delay on arrival to the actual
+destination airport. Confirming this with the below code.
+
+```{r}
+unique(subset(flight,diverted==1)$arr_delay)
+```
+
+The above results are inconsistent with the assumption. As it turns out,
+all diverted flights have no information on the `arr_delay`. This
+renders this column useless to us for predicting delay. Therefore, we
+will be removing this column as well.
+
+```{r}
+flight <- subset(flight,select=-c(diverted))
+```
+
+Now turning our attention to the the columns that cite the delay reason.
+On first glance, majority of the observations contain null values which
+is not a good sign. Lets get a count of how many null values there are.
+
+```{r}
+total <- nrow(flight)
+total
+(nrow(subset(flight,is.na(carrier_delay)))/total)*100
+(nrow(subset(flight,is.na(weather_delay)))/total)*100
+(nrow(subset(flight,is.na(nas_delay)))/total)*100
+(nrow(subset(flight,is.na(security_delay)))/total)*100
+(nrow(subset(flight,is.na(late_aircraft_delay)))/total)*100
+```
+
+We see that around 81.5% of all our observations contain null values for
+these columns and for some reason, the information is missing from
+columns at all the same instances. The conclusion is that we cannot use
+this column for any useful predictions owing to the large missing
+values. The choice is to drop these columns too. However, before doing
+that, we'll make a copy of flight dataset, maybe we can perform
+interesting EDA using this column using available rows (finding out the
+top reason for delay).
+
+```{r}
+flight_copy <- flight
+flight <- subset(flight, select=-c(carrier_delay,weather_delay,nas_delay,security_delay,late_aircraft_delay))
+```
+
+## Checking for further missing values in the dataset
+
+```{r}
+colSums(is.na(flight))
+```
+
+We see that quite a few columns still have null values. However, the
+proportion of these values is extremely small as compared to the size of
+the dataset. We will go ahead and remove these rows to ensure model is
+built correctly.
+
+```{r}
+flight <- subset(flight,!is.na(arr_delay)&!is.na(taxi_in))
+colSums(is.na(flight))
+```
+
+Checking the distribution of `delayed_status` column again.
+
+```{r}
+table(flight$delayed_status)
+```
+
+We still have enough 0's and 1's to build a logistic regression model.
+
+Now, for EDA purposes, we will make use of the external files airlines
+and airports to get respective airline names and city/state names into
+the dataset.
+
+First getting the airline names.
+
+```{r}
+flight$airline <- airlines$AIRLINE[match(flight$op_carrier, airlines$IATA_CODE)]
+```
+
+Next, getting the city name and state name into the dataset.
+
+```{r}
+flight$city_orig <- airports$CITY[match(flight$origin, airports$IATA_CODE)]
+flight$city_dest <- airports$CITY[match(flight$dest, airports$IATA_CODE)]
+flight$state_orig <- airports$STATE[match(flight$origin, airports$IATA_CODE)]
+flight$state_dest <- airports$STATE[match(flight$dest, airports$IATA_CODE)]
+```
+
+We can drop the original columns because it is redundant information.
+
+```{r}
+flight <- subset(flight,select=-c(op_carrier))
+```
+
+Now to answer one of the SMART questions, since there is slight skewness
+between the predicted variable, accuracy will not be enough as a
+criteria to judge our model. Precision and recall will play an important
+role as well. However, as the business problem is predicting whether a
+flight is delayed or not, it is more important to catch all flights that
+are actually delayed as opposed to optimizing whether a predicted delay
+is correct or not. There is no harm in proactively anticipating and
+preparing for flights that have anticipated delayed and they turn out to
+be not delayed. However, there is greater business loss if we miss out
+on flights that delayed but we were not able to identify them.
+
+In technical terms, our models need to be tuned to have a higher
+**recall** as opposed to **precision**.
+
+## Feature Engineering and EDA
+
+We can also make a month and a day variable, which could be good
+predictors of delays. Also creating a day of the week variable starting
+with Sunday.
+
+```{r}
+flight$MONTH <- substr(flight$fl_date, 6, 7)
+table(flight$MONTH)
+flight$DAY <- substr(flight$fl_date, 9, 10)
+#table(flight$DAY)
+flight$dow <- lubridate::wday(flight$fl_date,label=TRUE,abbr=FALSE)
+table(flight$dow)
+```
+
+We can also extract the hour of the scheduled flight to see if time of
+day is a good predictor
+
+```{r}
+# flight <- flight %>%
+#   mutate(
+#     hour = case_when(
+#       nchar(crs_dep_time) == 3 ~ substr(crs_dep_time, 2, 3),
+#       nchar(crs_dep_time) == 4 ~ substr(crs_dep_time, 3, 4),
+#       TRUE ~ crs_dep_time
+#     )
+#   )
+
+flight$crs_dep_time <- if_else(nchar(flight$crs_dep_time) != 4, paste0("0", flight$crs_dep_time), as.character(flight$crs_dep_time)) 
+flight$crs_dep_time <- if_else(nchar(flight$crs_dep_time) != 4, paste0("0", flight$crs_dep_time), as.character(flight$crs_dep_time)) 
+
+flight$hour <- as.integer(format(strptime(flight$crs_dep_time, "%H%M"), "%H"))
+
+table(flight$hour)
+
+flight %>% filter(hour == 00)
+```
+
+Lets first answer some questions on airline quality in terms of delays
+through some EDA.
+
+Graph of Number of Flights by Airline
+
+```{r}
+flight %>%
+  group_by(airline) %>%
+  summarize(
+    Count = n()
+  ) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(airline, Count, .desc = T),
+      x = Count
+    )
+  ) +
+  geom_col(fill = "lightblue", color = "black") +
+  labs(
+    title = "Number of Flights by Airline",
+    y = "Airline",
+    x = "Count"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+This is quite an interesting plot to start with as it already tells us
+which are the airlines that have the most domestic flights in the US:
+
+1.  Southwest Airlines
+2.  Delta Airlines
+3.  American Airlines
+4.  SkyWest Airlines
+5.  Atlantic South East Airlines
+
+Now the question to ask ourselves would be: if the top 5 airlines in
+terms of number of flight, are also the best in terms of arriving on
+time? We'll see which are the airlines with the most delayed flight to
+try to answer this:
+
+Graphing Number of Flight Delays by Airlines
+
+```{r}
+subset(flight,delayed_status==1) %>%
+  group_by(airline) %>%
+  summarize(
+    Count = n()
+  ) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(airline, Count, .desc = T),
+      x = Count
+    )
+  ) +
+  geom_col(fill = "lightblue", color = "black") +
+  labs(
+    title = "Number of Delayed Flights by Airline",
+    y = "Airline",
+    x = "Count"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+From this plot we can now extract the top 5 airlines with the most
+delayed flights, which are:
+
+1.  Southwest Airlines
+2.  Delta Airlines
+3.  American Airlines
+4.  SkyWest Airlines
+5.  Atlantic SouthEast Airlines
+
+It appears as if the Airlines with the most number of flights, tend to
+have more number of delayed flights as well.
+
+However, this may not be the best way to judge the performance of an
+airlines. To do so, we will calculate the percentage of delayed flights
+and the average delay time per airline, as that might be a better
+representation of how the airlines really perform.
+
+The first thing to calculate is the overall percentage of delayed
+flights so that we can do proper comparisons with each airline. In other
+words, airlines would want to be below the average percentage of delayed
+flights to be in an acceptable position, so this mean number will
+represent our threshold. Airlines above would be by common sense the
+ones that travelers would want to avoid as it means you those will have
+the most delays.
+
+```{r}
+threshold <- mean(flight$delayed_status)
+round(threshold*100,digits=2)
+```
+
+This result goes to say that 36.51% of the flights are delayed, roughly
+1 out of every 3 flight is delayed.
+
+```{r}
+test_1 <- flight %>% group_by(airline) %>% summarize(delays = sum(delayed_status))
+test_2 <- flight %>% group_by(airline) %>% summarize(count = n())
+dummy2 <- full_join(test_1,test_2,by='airline')
+dummy2$percent_delay <- round((dummy2$delays/dummy2$count)*100,digits=2)
+```
+
+Using this extra manipulated data, we can plot the percentage of flight
+delays per airline, also showcasing the threshold value that is
+calculated from the data. This should give us a good indicator of which
+airline performs well.
+
+```{r}
+ggplot(data=dummy2, 
+       aes(x=percent_delay,y=fct_reorder(airline, percent_delay, .desc = T)))+geom_col(fill = "lightblue", color = "black")+geom_vline(xintercept=36.51,color='blue',linetype='dashed',size=0.5)+labs(title="Percentage of delay per airline",x="Percent",y="Airline")
+```
+
+This is provides us with really interesting observations.
+
+Delta Airlines is the second airline with the highest number of flights,
+at the same time is again the second highest number of delayed flights,
+but in terms of percentage of delayed flights, it is the airline with
+the best percentage at 29.02%. That represents \~7% below the threshold.
+
+American Airlines in another airline that tops the list in terms of
+number of flights but is still below the threshold value in terms of
+delay. So these two airlines must be the most sought after by passengers
+if they want to avoid delay.
+
+Southwest Airlines has the most flights and consequently, a higher
+number of delayed flights as well, but as our last plot suggests, it is
+not the worst, it is the sixth best and is above the threshold value by
+over 1%, so definitely not great compared to Delta Airlines.\
+Similarly Atlantic SouthEast Airlines and United airlines have large
+number of flights but perform somewhat moderately when compared to other
+airlines.
+
+Now coming to the bad airlines. The top 4 airlines with the highest
+percent of delays happen to be the top 4 airlines with the least number
+of flights as well. These airlines should definitely be avoided by
+passengers if they want to ensure timely arrival.
+
+Further airline testing. Plotting total number of delay in minutes by
+each airline
+
+```{r}
+flight %>% group_by(airline) %>% summarize(total = sum(arr_delay)) %>% ggplot(aes(x=total,fct_reorder(airline,total,.desc=T)))+geom_col(color='light blue',fill="pink") + labs(title="Total minutes of flight delay",x="Sum of minutes",y="Airline")
+```
+
+With the help of this plot, we see that Southwest Airlines has the
+highest flight delays in number of minutes. So a passenger flying this
+airline can expect to extremely high delays (in minutes) in their
+travel.\
+Delta airline seems to do well here as well, being the 3rd highest in
+total delay duration, continuing to catch our attention!
+
+Another airline that comes into notice with this plot is the Alaska
+Airlines. The negative bar plot indicates that they are prone to
+actually arriving earlier than usual by a larger margin than their
+flights get delayed! Which is good news for the passengers, most of the
+times.
+
+Verdict: Airlines to travel by - Delta Airlines, Alaska Airlines.
+
+Worst and best months to travel based on Flight delays.
+
+```{r}
+subset(flight,delayed_status==1) %>%
+  group_by(MONTH) %>% summarize(count = n()) %>% ggplot(
+    aes(
+      x = fct_reorder(MONTH,count,.desc=T),
+      y = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Delayed Flights by Month",
+    x = "Month",
+    y = "Count"
+  ) +
+  theme_bw()
+```
+
+Seems like the best month to travel is September with the least number
+of Delays, whereas June consists of a lot of delays.
+
+However, this is just an absolute number. A better way to find the best
+and worst months to travel will be through proportions. Lets first plot
+the count of flights that run in each month.
+
+```{r}
+flight %>%
+  group_by(MONTH) %>% summarize(count = n()) %>% ggplot(
+    aes(
+      x = fct_reorder(MONTH,count,.desc=T),
+      y = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Flights by Month",
+    x = "Month",
+    y = "Count"
+  ) +
+  theme_bw()
+```
+
+Looks the busiest months are July, August and May. One possible
+explanation is start and end of summer vacations??
+
+Now lets plot the proportion. Graph of percent of flight delays by month
+
+```{r}
+flight %>%
+  group_by(MONTH) %>%
+  summarize(
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      x = fct_reorder(MONTH, prop_delayed, .desc = T),
+      y = prop_delayed
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Percent of Flights Delayed by Month",
+    x = "Month",
+    y = "Percent"
+  ) +
+  theme_bw()
+```
+
+Seems like September runs the least number of delayed flights being the
+9th busiest month and has the lowest proportion of delay. October, too
+is the 7th busiest month and 2nd least delay month. Seems like airline
+companies really buckle up on delays in these months whereas maintaining
+a moderately high number of flights.
+
+January runs the 2nd least number of flights with the 4th highest
+delays. Must be stressful for the few passengers that travel then.
+
+March and July run a large number of flights with a large number of
+delays.
+
+Lets repeat the same exercise for day of the week. Graphing Number of
+Flight Delays by Day Of Week
+
+```{r}
+subset(flight,delayed_status==1) %>% group_by(dow) %>% summarize(count = n()) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(dow,count,.desc=T),
+      x = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Delayed Flights by DOW",
+    y = "DOW",
+    x = "Count"
+  ) +
+  theme_bw()
+```
+
+Now plotting the total number of flights in the week.
+
+```{r}
+flight %>%
+  group_by(dow) %>% summarize(count = n()) %>% ggplot(
+    aes(
+      y = fct_reorder(dow,count,.desc=T),
+      x = count
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Number of Flights by Day of Week",
+    y = "DOW",
+    x = "Count"
+  ) +
+  theme_bw()
+```
+
+Seems like the busiest days are Friday and Thursday and a result, they
+also have the most delayed number of flights. Whereas, Saturday and
+Sunday are least busiest with lesser number of delays.
+
+Graph of percent of flight delays by Day of Week
+
+```{r}
+flight %>%
+  group_by(dow) %>%
+  summarize(
+    prop_delayed = mean(delayed_status, na.rm = T) * 100
+  ) %>%
+  ggplot(
+    aes(
+      y = fct_reorder(dow, prop_delayed, .desc = T),
+      x = prop_delayed
+    )
+  ) +
+  geom_col(fill = "lightblue", col = "black") +
+  labs(
+    title = "Percent of Flights Delayed by DOW",
+    y = "DOW",
+    x = "Percent"
+  ) +
+  theme_bw()
+```
+
+Now lets try to see the top 20 most popular cities and how their average
+arrival delay looks like.
+
+Lets look at the 20 most popular destination cities in the US first.
+
+```{r}
+dummy4 <- flight %>% group_by(city_dest) %>% summarize(NOF = n(),Average_delay = mean(arr_delay)) 
+dummy4 <- dummy4[order(dummy4$NOF,decreasing=TRUE),]
+dummy4 <- dummy4[1:20,]
+
+ggplot(dummy4,aes(x=NOF,y=fct_reorder(city_dest,NOF,.desc=T)))+geom_col(fill="pink",color="black")+labs(title="Top 20 most visited cities",x="Number of Flights",y="City")
+```
+
+Now lets add another axis and look at the average delay in the top 20
+destinations.
+
+```{r}
+dummy6 <- dummy4 %>% pivot_longer(.,cols = c('NOF','Average_delay'),names_to='value_category') %>% mutate(scaled_value = ifelse(value_category=="Average_delay",value,value/10000))
+ggplot(dummy6,aes(x=scaled_value,y=reorder(city_dest,value,.desc=T),fill=value_category)) + 
+  geom_col(position="dodge") + 
+  scale_x_continuous(sec.axis = sec_axis(~ . *10000 , name = "Number of Flights"))+
+  labs(x="Average Arr Delay",y="City") 
+```
+
+This graph gives us lots of useful information about the top 20 most
+visited cities. It is interesting to see how Atlanta, having such a high
+number of landings, has a very low average delay with just over 2
+minutes, whereas Newark, a not so popular destination, has such a high
+minute average delay. New York, which is the 7th most popular
+destination (not sure why this is the case since its so popular) has the
+highest average delay out of all, which doesn't add up with it being the
+7th most visited place. San Francisco is another destination that stands
+out with a high average delay as well as Orlando and Boston.
+
+Fun Fact - Salt Lake City is famous for its early arriving flight. We
+should probably go and visit.
+
+Now lets repeat the same time for top 20 origin cities and associated
+departure delays with them.
+
+```{r}
+dummy5 <- flight %>% group_by(city_orig) %>% summarize(NOF = n(),Average_delay = mean(dep_delay)) 
+dummy5 <- dummy5[order(dummy5$NOF,decreasing=TRUE),]
+dummy5 <- dummy5[1:20,]
+dummy7 <- dummy5 %>% pivot_longer(.,cols = c('NOF','Average_delay'),names_to='value_category') %>% mutate(scaled_value = ifelse(value_category=="Average_delay",value,value/10000))
+ggplot(dummy7,aes(x=scaled_value,y=reorder(city_orig,value,.desc=T),fill=value_category)) + 
+  geom_col(position="dodge") + 
+  scale_x_continuous(sec.axis = sec_axis(~ . *10000 , name = "Number of Flights"))+
+  labs(x="Average Dep Delay",y="City") 
+
+```
+
+This is an important graph when compared to the previous one. It seems
+like majorly, a city have a high departure delay, corresponds to a high
+arrival delay as we can see with new york, newark etc. This may lead
+someone to believe that departure delay always corresponds to arrival
+delay.\
+However, Salt Lake City to the rescue to save us from this erroneous
+assumption. Despite having moderately high arrival delay, the flights to
+this city are somehow able to compensate for this and arrive earlier on
+average.
+
+For the last EDA, lets also plot the number of destinations by Airlines
+to see which airline has the maximum 'coverage'.
+
+```{r}
+flight %>% group_by(airline) %>% summarize(dest = length(unique(city_dest))) %>% ggplot(aes(x=dest,y=fct_reorder(airline,dest,.desc=T)))+geom_col(fill="pink", color="black")+labs(title="Number of Destinations per Airline",x="Count of Destinations",y="Airline")
+```
+
+Delta Air Lines has once again managed to appear in top 3, providing
+with the 3rd highest coverage. Its a no brainer at this point to use
+this airline for domestic travel in the US.
+
+# ML Modeling
+
+## Logistic Regression
+
+Having over 500,000 is too much to process in the model and is causing
+the session to slow down. To prevent this, we are going to further
+subset the dataset before processing.
+
+```{r}
+set.seed(333)
+sample_size = round(nrow(flight)*0.05)
+flight_small <- flight[sample(nrow(flight), sample_size, replace = F),]
+head(flight_small)
+```
+
+```{r}
+flight_small$airline <- as.factor(flight_small$airline)
+flight_small$city_orig <- as.factor(flight_small$city_orig)
+flight_small$city_dest <- as.factor(flight_small$city_dest)
+flight_small$month <- as.factor(flight_small$MONTH)
+
+# flight_small <- flight_small[!is.na(flight_small$op_carrier),]
+# flight_small <- flight_small[!is.na(flight_small$origin),]
+# flight_small <- flight_small[!is.na(flight_small$dest),]
+# flight_small <- flight_small[!is.na(flight_small$month),]
+# flight_small <- flight_small[!is.na(flight_small$delayed_status),]
+
+str(flight_small)
+```
+
+We will include the following variables in our initial development of
+our model to predict delayed status: \* Airline \* Origin Airport \*
+Destination Airport \* Month \* Day of Week \* Time of Day (by hour of
+departure) \* Distance
+
+Train-test Split of Data
+
+```{r}
+set.seed(322)
+flight_sample <- sample(2, nrow(flight_small), replace = TRUE, prob = c(0.8, 0.2))
+
+flight_training <- flight_small[flight_sample == 1, ]
+flight_test <- flight_small[flight_sample == 2, ]
+```
+
+```{r}
+logit <- glm(delayed_status ~ airline + origin + dest + MONTH + dow + hour + distance, data = flight_training, family = "binomial")
+summary(logit)
+```
+
+The following coefficients are significant:
+
+```{r}
+k <- data.frame(summary(logit)$coefficients)[,c(1,4)]
+
+kj <- subset(k, `Pr...z..` < 0.05)
+kj
+```
+
+*ADD THE REST* The following Airlines are significant: \* Frontier
+Airlines \* Skywest Airlines \* Southwest Airlines \* Spirit Airlines
+
+The following months are significant: \* February \* June \* October \*
+December
+
+The following days of the week: \* Q? \* 6?
+
+Hour was also a significant predictor.
+
+Let's plot the ROC
+
+```{r}
+loadPkg("pROC") 
+prob <- predict(logit, type = "response" )
+flight_training$prob <- prob
+h <- roc(delayed_status ~ prob, data = flight_training)
+auc(h) # 0.654
+plot(h)
+```
+
+```{r}
+flight_test <- flight_test[!(flight_test$origin == "SCE" | flight_test$origin == "TXK"), ]
+flight_test <- flight_test[!(flight_test$dest == "GRI" | flight_test$dest == "WYS"), ]
+
+loadPkg("pROC") 
+prob <- predict(logit, flight_test, type = "response" )
+flight_test$prob <- prob
+h <- roc(delayed_status ~ prob, data = flight_test)
+auc(h) # 0.60
+plot(h)
+```
+
+Area under the curve is 0.6543 on the training data, and 0.60 on the
+testing data
+
+```{r}
+library(pscl)
+pR2(logit)
+```
+
+McFadden value is 0.058
+
+Confusion Matrix
+
+```{r}
+library(caret)
+
+flight_test$response <- as.factor(if_else(flight_test$prob >=0.5, 1, 0))
+flight_test$delayed_status <- as.factor(flight_test$delayed_status)
+
+confusionMatrix(flight_test$response, flight_test$delayed_status)
+```
+
+Accuracy on model: 62.9% Sensitivity / Recall: 19.1% - 409 / (1731+409)
+Specificity: 88.57% Precision: 49.5%
+
+The specificity on this model is pretty good, but the other metric could
+use some improvement. Let's try with a different cutoff value
+
+```{r}
+flight_test$response <- as.factor(if_else(flight_test$prob >=0.4, 1, 0))
+flight_test$delayed_status <- as.factor(flight_test$delayed_status)
+
+confusionMatrix(flight_test$response, flight_test$delayed_status)
+```
+
+At a lower cutoff value, the accuracy is slightly lower at 59.8% but
+there is an improvement in the sensitivity of the model at 45.5%
+
+Can go even further with a lower cutoff value
+
+```{r}
+flight_test$response <- as.factor(if_else(flight_test$prob >=0.3, 1, 0))
+flight_test$delayed_status <- as.factor(flight_test$delayed_status)
+
+confusionMatrix(flight_test$response, flight_test$delayed_status)
+```
+
+Recall with this model is **76.9%**.
+
+### Trying with other variables
+
+```{r}
+logit2 <- glm(delayed_status ~ airline + origin + dest + MONTH + dow + hour + distance + taxi_in + wheels_on + actual_elapsed_time, data = flight_training, family = "binomial")
+summary(logit2)
+```
+
+Significant Coefficients
+
+```{r}
+k <- summary(logit2)$coefficients[,4]
+subset(k, k < 0.05)
+```
+
+McFadden
+
+```{r}
+pR2(logit2)
+```
+
+Mc Fadden is 0.206
+
+Plotting ROC
+
+```{r}
+prob <- predict(logit2, type = "response" )
+flight_training$prob <- prob
+h <- roc(delayed_status ~ prob, data = flight_training)
+auc(h) # 0.786
+plot(h)
+```
+
+Confusion Matrix
+
+```{r}
+flight_training$response <- as.factor(if_else(flight_training$prob >=0.5, 1, 0))
+flight_training$delayed_status <- as.factor(flight_training$delayed_status)
+
+confusionMatrix(flight_training$response, flight_training$delayed_status)
+```
+
+## Random Forest
+
+Train-test splitting
+
+Unable to use factor variables that are more than 53 categories, so we
+have to drop origin and destination airports
+
+```{r}
+set.seed(333)
+sample_size = round(nrow(flight)*0.01)
+flight_small <- flight[sample(nrow(flight), sample_size, replace = F),]
+
+set.seed(322)
+flight_sample <- sample(2, nrow(flight_small), replace = TRUE, prob = c(0.8, 0.2))
+
+flight_training <- flight_small[flight_sample == 1, ]
+flight_test <- flight_small[flight_sample == 2, ]
+
+X_train <- subset(flight_training, select = c(airline, MONTH, dow, hour, distance, delayed_status))
+X_test <-subset(flight_test, select = c(airline, MONTH, dow, hour, distance, delayed_status))
+
+X_train$delayed_status <- as.factor(X_train$delayed_status)
+X_train$MONTH <- as.factor(X_train$MONTH)
+X_test$delayed_status <- as.factor(X_test$delayed_status)
+X_test$MONTH <- as.factor(X_test$MONTH)
+
+str(X_train)
+```
+
+Building Model
+
+```{r}
+library(randomForest)
+
+set.seed(64)
+rf <- randomForest(delayed_status ~ ., data = X_train, proximity = TRUE)
+rf
+```
+
+Making Confusion Matricies
+
+```{r}
+p1 <- predict(rf, X_train)
+confusionMatrix(p1, X_train$delayed_status)
+```
+
+99.9% Accuracy on the training set
+
+Confusion Matrix for the Testing set
+
+```{r}
+p2 <- predict(rf, X_test)
+confusionMatrix(p2, X_test$delayed_status)
+```
+
+Accuracy: 57.8% Sensitivity / Recall: 27.4% Specificity: 75.0%
+Precision: 38.2%
+
+Again, specificity is good but the other measures are not.
+
+Trying with different amounts of trees
+
+```{r}
+set.seed(99)
+rf2 <- randomForest(delayed_status ~ ., data = X_train, proximity = TRUE, maxnodes = 500)
+
+p3 <- predict(rf, X_test)
+confusionMatrix(p3, X_test$delayed_status)
+```
+
+Playing around with maxnodes, number of trees, and tree depth doesn't
+seem to improve the model very well
+
+## Notes on Data Limitations
+
+We would have been able to significantly improve the quality of our
+models if we have the following additional data:
+
+-   Weather Data
+-   Airline Staffing Data
+-   Data on International Flights
+-   Airport Security Data
+
+We might need to wait for more data, and higher computational power,
+before we can predict a brave new world for air trave - one without long
+queues and outrageous wait times, without airport sleepovers and missed
+schedules.
+
+# Summary and Conclusions
+
+In summary, the key lessons learnt from the dataset used in this project
+and key analysis performed were:
+
+-   Certain Airlines and Airports are more likely to have delays than
+    others.
+
+-   As the day progresses, delays are more likely to occur.
+
+-   The average delay percentage of domestic flights have dropped from
+    36.51% in 2015 to 20.19% in 2022 (YTD).
+
+-   Flight delays are difficult to predict! Combining with more data
+    would have been helpful.
+
+-   While more dataset would have provided more insight, higher
+    computational power is required to develop better models!
+
+# References
+
+1.  Flight Delays and Cancellation Dataset. US Department of
+    Transportation's (DOT) Bureau of Transportation Statistics (2015).
+    Retrieved November 22, 2022, from
+    <https://www.kaggle.com/datasets/usdot/flight-delays>
+
+2.  Zieffler, Andrew (2018). R Markdown Theme Gallery, from
+    <https://www.datadreaming.org/post/r-markdown-theme-gallery/>
